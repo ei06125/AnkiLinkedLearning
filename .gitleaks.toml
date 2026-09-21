@@ -1,0 +1,8 @@
+title = "AnkiLinkedLearning secret detection"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated build, browser artifacts, and installed dependencies"
+paths = ['''(^|/)\.build/''', '''(^|/)\.playwright-mcp/''', '''(^|/)node_modules/''']

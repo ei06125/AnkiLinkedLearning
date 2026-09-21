@@ -1,0 +1,16 @@
+{
+  "name": "ankilinkedlearning",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "repository": { "type": "git", "url": "git+ssh://git@github.com/ei06125/AnkiLinkedLearning.git" },
+  "scripts": {
+    "build": "node Tools/scripts/build.mjs",
+    "test": "node --test Tests/unit/*.test.js Tests/acceptance/*.test.js",
+    "check": "node Tools/scripts/check.mjs",
+    "hooks:install": "pre-commit install --install-hooks",
+    "security": "gitleaks dir --redact --config .gitleaks.toml .",
+    "verify": "npm run check && npm test && npm run build"
+  }
+}
