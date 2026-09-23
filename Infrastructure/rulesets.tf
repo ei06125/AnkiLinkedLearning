@@ -63,3 +63,39 @@ resource "github_repository_ruleset" "tags" {
     non_fast_forward = true
   }
 }
+
+resource "github_repository_ruleset" "conventional_branches" {
+  name        = "Enforce conventional branch prefixes"
+  repository  = var.repository_name
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["~ALL"]
+      exclude = [
+        "refs/heads/main",
+        "refs/heads/master",
+        "refs/heads/develop",
+        "refs/heads/dev",
+        "refs/heads/feature/*",
+        "refs/heads/feat/*",
+        "refs/heads/bugfix/*",
+        "refs/heads/fix/*",
+        "refs/heads/hotfix/*",
+        "refs/heads/release/*",
+        "refs/heads/chore/*",
+        "refs/heads/ai/*",
+        "refs/heads/claude/*",
+        "refs/heads/codex/*",
+        "refs/heads/copilot/*",
+        "refs/heads/cursor/*",
+        "refs/heads/dependabot/**/*",
+      ]
+    }
+  }
+
+  rules {
+    creation = true
+  }
+}
