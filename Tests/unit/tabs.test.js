@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findLinkedInLearningTab, isLinkedInLearningUrl } from '../../SourceCode/apps/extension/tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from '../../SourceCode/apps/extension/tabs.js';
 
 test('recognizes LinkedIn Learning lesson URLs', () => {
   assert.equal(isLinkedInLearningUrl('https://www.linkedin.com/learning/course/lesson'), true);
   assert.equal(isLinkedInLearningUrl('https://linkedin.com/learning/course/lesson'), true);
   assert.equal(isLinkedInLearningUrl('https://www.linkedin.com/feed/'), false);
+});
+
+test('normalizes lesson URLs for single-page navigation checks', () => {
+  assert.equal(normalizeLinkedInLearningUrl('https://www.linkedin.com/learning/course/lesson?resume=false#transcript'), 'https://www.linkedin.com/learning/course/lesson');
+  assert.equal(normalizeLinkedInLearningUrl('https://www.linkedin.com/feed/'), '');
 });
 
 test('finds the active lesson in the last focused window', async () => {

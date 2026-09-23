@@ -5,6 +5,25 @@ export function sentences(text) {
     .map(value => value.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 }
 
+export function transcriptParagraphs(cues) {
+  const paragraphs = [];
+  let text = '';
+  let start = null;
+  for (const cue of cues) {
+    for (const part of cue.text.match(/[^。]*。|[^。]+$/gu) || []) {
+      if (!text) start = cue.start;
+      text += part.trim();
+      if (part.endsWith('。')) {
+        paragraphs.push({ text, start });
+        text = '';
+        start = null;
+      }
+    }
+  }
+  if (text) paragraphs.push({ text, start });
+  return paragraphs;
+}
+
 export function kanjiList(text) {
   const counts = new Map();
   for (const character of text) {

@@ -1,7 +1,7 @@
-import { sentences, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
+import { sentences, transcriptParagraphs, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
 import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
-import { findLinkedInLearningTab } from './tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
 import { readVideoTime, seekVideo } from './playback.js';
 
@@ -18,8 +18,23 @@ let targetTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
 let activeCue = -1;
+let pageActive = false;
+
+async function refreshPageMode() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  pageActive = isLinkedInLearningUrl(tab?.url);
+  $('landing').hidden = pageActive;
+  $('app').hidden = !pageActive;
+  if (pageActive && lesson?.url?.startsWith('https://') && normalizeLinkedInLearningUrl(tab.url) !== lesson.url) {
+    resetLesson();
+    status('New lesson detected. Capture its transcript to continue.');
+  }
+  if (!pageActive) $('status').hidden = true;
+  else if (vocabularyTab === 'full-transcript') syncTranscriptWithVideo();
+}
 
 function status(message, error = false) {
+  if (!pageActive) return;
   clearTimeout(statusTimer);
   $('status').textContent = message;
   $('status').classList.toggle('error', error);
@@ -187,7 +202,7 @@ function updateActiveCue(currentTime, forceScroll = false) {
 }
 
 async function syncTranscriptWithVideo() {
-  if (vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
+  if (!pageActive || vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
     if (!tab) return;
@@ -204,7 +219,7 @@ function renderFullTranscript() {
     return;
   }
   let firstMatch;
-  const entries = current.cues?.length ? current.cues : sentences(current.text).map(text => ({ text, start: null }));
+  const entries = current.cues?.length ? transcriptParagraphs(current.cues) : sentences(current.text).map(text => ({ text, start: null }));
   entries.forEach((cue, index) => {
     const row = element('div', undefined, 'transcript-cue');
     row.dataset.cueIndex = index;
@@ -240,6 +255,7 @@ function renderTranscript() {
   $('words').replaceChildren();
   $('transcript').replaceChildren();
   $('show-all').hidden = !filter;
+  $('reset').disabled = !lesson;
   $('transcript-title').textContent = filter ? `Sentences containing ${filter}` : lesson?.title || 'Your transcript appears here';
   if (!lesson) {
     $('transcript').append(element('p', 'Capture a lesson or try the sample to get started.', 'empty'));
@@ -279,6 +295,20 @@ function renderTranscript() {
     }
     $('transcript').append(row);
   }
+}
+
+function resetLesson() {
+  lesson = null;
+  filter = '';
+  selection = null;
+  currentCardId = null;
+  activeCue = -1;
+  targetTab = 'words';
+  $('paste-title').value = '';
+  $('paste-text').value = '';
+  $('add-selection').textContent = 'Add selection';
+  highlightOnPage('');
+  setVocabularyTab('words');
 }
 
 function renderCards() {
@@ -365,6 +395,10 @@ $('paste').onclick = async () => {
     $('paste-text').value = '';
   } catch (error) { status(error.message, true); }
 };
+$('reset').onclick = () => {
+  resetLesson();
+  status('Transcript session reset. Saved cards were kept.');
+};
 $('demo').onclick = async () => {
   try {
     await addLesson({ title: 'Sample · 機械学習の概要', url: 'sample:machine-learning', text: '機械学習では、現在のデータを用いて将来の出来事を予測します。教師あり学習と教師なし学習を選択できます。Pythonでモデルを柔軟に構築することができます。学習したモデルをテストして管理します。' });
@@ -412,6 +446,7 @@ $('open-export-folder').onclick = () => {
 };
 
 try {
+  await refreshPageMode();
   const saved = storage ? (await storage.get('kanjiLearning')).kanjiLearning : JSON.parse(localStorage.getItem('kanjiLearning') || 'null');
   if (saved) state = {
     cards: Array.isArray(saved.cards) ? saved.cards : [],
@@ -427,3 +462,5 @@ try {
 } catch (error) { status(`Could not load saved data: ${error.message}`, true); }
 
 setInterval(syncTranscriptWithVideo, 1000);
+chrome.tabs.onActivated.addListener(refreshPageMode);
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => { if (changeInfo.url || changeInfo.status === 'complete') refreshPageMode(); });

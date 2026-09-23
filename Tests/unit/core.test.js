@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sentences, kanjiList, wordList, makeCard, cardFields, exportAnki } from '../../SourceCode/libs/core.js';
+import { sentences, transcriptParagraphs, kanjiList, wordList, makeCard, cardFields, exportAnki } from '../../SourceCode/libs/core.js';
 
 test('keeps a sentence together across transcript cue boundaries', () => {
   assert.deepEqual(sentences('機械学習では\n現在のデータを使います。次の文です！'), ['機械学習では 現在のデータを使います。', '次の文です！']);
+});
+
+test('groups timestamped transcript cues from one full stop to the next', () => {
+  assert.deepEqual(transcriptParagraphs([
+    { text: 'このレッスンでは', start: 0 },
+    { text: '機械学習を説明します。次の', start: 2.7 },
+    { text: '文章です。最後', start: 6.8 }
+  ]), [
+    { text: 'このレッスンでは機械学習を説明します。', start: 0 },
+    { text: '次の文章です。', start: 2.7 },
+    { text: '最後', start: 6.8 }
+  ]);
 });
 test('counts individual kanji including supplementary Unicode characters', () => {
   assert.deepEqual(kanjiList('学ぶ学習𠮷'), [{ character: '学', count: 2 }, { character: '習', count: 1 }, { character: '𠮷', count: 1 }]);

@@ -6,6 +6,10 @@ header { display: flex; align-items: center; gap: 12px; padding: 24px 20px; back
 h1 { font-size: 19px; margin: 0; letter-spacing: -.5px; }
 header p { color: #c6d7ce; margin: 5px 0 0; font-size: 12px; }
 main { padding: 18px; max-width: 760px; margin: auto; }
+.landing { min-height: 70vh; display: grid; place-items: center; text-align: center; }
+.landing section { max-width: 420px; border: 0; background: transparent; }
+.landing-mark { display: inline-grid; place-items: center; width: 76px; height: 76px; margin-bottom: 18px; border: 1px solid #82a899; border-radius: 20px; color: #235746; font-size: 44px; }
+.landing h2 { font-size: 21px; }
 section { padding: 19px; background: #fff; border: 1px solid #dde4db; border-radius: 14px; margin-bottom: 16px; }
 h2 { font-size: 15px; margin: 0; } h3 { font-size: 13px; margin: 12px 0; }
 p { line-height: 1.6; color: #65736b; font-size: 13px; }
@@ -15,6 +19,7 @@ button, input, select, textarea { font: inherit; border-radius: 7px; }
 button { cursor: pointer; padding: 9px 12px; border: 1px solid #ccd9d0; background: #f3f7f1; color: #244638; }
 button:hover { background: #e5eedf; } button:disabled { opacity: .45; cursor: default; }
 button.primary { background: #235746; color: white; border-color: #235746; width: 100%; } button.primary:hover { background: #163e35; }
+.capture-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 #open-export-folder { width: 100%; margin-top: 8px; }
 .quiet { border: 0; background: transparent; padding: 4px; font-size: 12px; }
 label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 600; }
