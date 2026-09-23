@@ -64,6 +64,24 @@ resource "github_repository_ruleset" "tags" {
   }
 }
 
+resource "github_repository_ruleset" "semantic_version_tags" {
+  name        = "Enforce semantic version tags"
+  repository  = var.repository_name
+  target      = "tag"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["~ALL"]
+      exclude = ["refs/tags/v[0-9]*.[0-9]*.[0-9]*"]
+    }
+  }
+
+  rules {
+    creation = true
+  }
+}
+
 resource "github_repository_ruleset" "conventional_branches" {
   name        = "Enforce conventional branch prefixes"
   repository  = var.repository_name
