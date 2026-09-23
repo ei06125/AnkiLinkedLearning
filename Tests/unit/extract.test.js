@@ -60,3 +60,16 @@ test('uses Japanese video cues for timestamps when available', () => {
   const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/lesson' } });
   assert.deepEqual(JSON.parse(JSON.stringify(result.cues)), [{ text: '字幕です。', start: 4.25 }]);
 });
+
+test('uses embedded LinkedIn transcript timing when video cues are unavailable', () => {
+  const cue = text => ({ innerText: text, dataset: {}, getAttribute: () => null, querySelector: () => null, closest: () => null, getClientRects: () => [1] });
+  const document = {
+    querySelectorAll: selector => selector === '.classroom-transcript__lines .content-transcript-line'
+      ? [cue('このレッスンでは'), cue('機械学習を説明します。')]
+      : selector === 'code' ? [{ textContent: JSON.stringify({ lines: [{ transcriptStartAt: 0, caption: 'このレッスンでは' }, { transcriptStartAt: 2700, caption: '機械学習を説明します。' }] }) }] : [],
+    querySelector: () => null,
+    title: 'Video lesson'
+  };
+  const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/lesson' } });
+  assert.deepEqual(JSON.parse(JSON.stringify(result.cues)), [{ text: 'このレッスンでは', start: 0 }, { text: '機械学習を説明します。', start: 2.7 }]);
+});

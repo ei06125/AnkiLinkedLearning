@@ -45,6 +45,37 @@
       if (text) break;
     }
   }
+  if (text && !cues.some(cue => cue.start != null)) {
+    const candidates = [];
+    const visit = value => {
+      if (!value) return;
+      if (Array.isArray(value)) {
+        if (value.some(item => Number.isFinite(item?.transcriptStartAt) && typeof item?.caption === 'string')) candidates.push(value);
+        else value.forEach(visit);
+        return;
+      }
+      if (typeof value === 'object') Object.values(value).forEach(visit);
+      else if (typeof value === 'string' && value.includes('transcriptStartAt')) {
+        try { visit(JSON.parse(value)); } catch {}
+      }
+    };
+    for (const node of document.querySelectorAll('code')) {
+      if (!node.textContent.includes('transcriptStartAt')) continue;
+      try { visit(JSON.parse(node.textContent)); } catch {}
+    }
+    const visibleCaptions = new Set(cues.map(cue => cue.text));
+    const transcript = candidates.sort((left, right) => {
+      const score = lines => lines.filter(line => visibleCaptions.has(line.caption?.trim())).length;
+      return score(right) - score(left);
+    })[0];
+    if (transcript) {
+      const timed = transcript.filter(line => line.caption?.trim()).map(line => ({ text: line.caption.trim(), start: line.transcriptStartAt / 1000 }));
+      if (timed.filter(cue => visibleCaptions.has(cue.text)).length) {
+        cues = timed;
+        text = cues.map(cue => cue.text).join('\n');
+      }
+    }
+  }
   if (!text) {
     const tab = [...document.querySelectorAll('[role="tab"]')].find(element => /transcript|文字起こし|トランスクリプト/i.test(element.textContent));
     const panel = tab && document.getElementById(tab.getAttribute('aria-controls'));
