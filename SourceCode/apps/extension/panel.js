@@ -4,12 +4,14 @@ import { translateSentence } from '../../libs/translation.js';
 import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
 import { activeTranscriptIndex, readVideoTime, seekVideo } from './playback.js';
+import { captureFreshTranscript } from './capture.js';
 
 const $ = id => document.getElementById(id);
 const storage = globalThis.chrome?.storage?.local;
 const panelPort = globalThis.chrome?.runtime ? chrome.runtime.connect({ name: 'anki-panel' }) : null;
 let state = { cards: [], deck: 'LinkedIn Japanese', mode: 'reading' };
 let lesson = null;
+let previousLessonText = '';
 let filter = '';
 let selection = null;
 let currentCardId = null;
@@ -27,7 +29,7 @@ async function refreshPageMode() {
   $('landing').hidden = pageActive;
   $('app').hidden = !pageActive;
   if (pageActive && lesson?.url?.startsWith('https://') && normalizeLinkedInLearningUrl(tab.url) !== lesson.url) {
-    resetLesson();
+    resetLesson(true);
     status('New lesson detected. Capture its transcript to continue.');
   }
   if (!pageActive) $('status').hidden = true;
@@ -295,7 +297,8 @@ function renderTranscript() {
   }
 }
 
-function resetLesson() {
+function resetLesson(rememberCurrent = false) {
+  previousLessonText = rememberCurrent ? lesson?.text || '' : '';
   lesson = null;
   filter = '';
   selection = null;
@@ -367,6 +370,7 @@ async function addLesson(captured) {
   if (!hasKanji(captured.text)) throw new Error('No kanji found. Select the Japanese transcript or paste Japanese text.');
   captured.id = captured.url || crypto.randomUUID();
   lesson = captured;
+  previousLessonText = '';
   activeCue = -1;
   activeTime = 0;
   filter = '';
@@ -383,8 +387,11 @@ $('capture').onclick = async () => {
     if (!globalThis.chrome?.scripting) throw new Error('Load this folder as a Chrome extension to capture a lesson. You can try the sample here.');
     const tab = await findLinkedInLearningTab(chrome.tabs);
     if (!tab) throw new Error('No LinkedIn Learning lesson tab was found. Open a lesson, then try again.');
-    const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['SourceCode/apps/extension/extract.js'] });
-    await addLesson(result.result);
+    const captured = await captureFreshTranscript(async () => {
+      const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['SourceCode/apps/extension/extract.js'] });
+      return result.result;
+    }, previousLessonText);
+    await addLesson(captured);
   } catch (error) { status(error.message, true); }
   finally { $('capture').disabled = false; }
 };
