@@ -5,6 +5,7 @@
 [![Approval](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/approval.yml/badge.svg)](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/approval.yml)
 [![Label pull request](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/labeler.yml/badge.svg)](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/labeler.yml)
 [![Assign pull request author](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/assign-author.yml/badge.svg)](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/assign-author.yml)
+[![Tag release](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/tag-release.yml/badge.svg)](https://github.com/ei06125/AnkiLinkedLearning/actions/workflows/tag-release.yml)
 
 A Chrome extension that turns Japanese transcripts into contextual Anki cards. Capture the current LinkedIn Learning transcript, select individual kanji or detected words, and keep the surrounding sentence.
 

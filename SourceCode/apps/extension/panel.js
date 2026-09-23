@@ -1,7 +1,7 @@
 import { sentences, transcriptParagraphs, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
 import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
-import { findLinkedInLearningTab, isLinkedInLearningUrl } from './tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
 import { readVideoTime, seekVideo } from './playback.js';
 
@@ -25,6 +25,10 @@ async function refreshPageMode() {
   pageActive = isLinkedInLearningUrl(tab?.url);
   $('landing').hidden = pageActive;
   $('app').hidden = !pageActive;
+  if (pageActive && lesson?.url?.startsWith('https://') && normalizeLinkedInLearningUrl(tab.url) !== lesson.url) {
+    resetLesson();
+    status('New lesson detected. Capture its transcript to continue.');
+  }
   if (!pageActive) $('status').hidden = true;
   else if (vocabularyTab === 'full-transcript') syncTranscriptWithVideo();
 }
@@ -251,6 +255,7 @@ function renderTranscript() {
   $('words').replaceChildren();
   $('transcript').replaceChildren();
   $('show-all').hidden = !filter;
+  $('reset').disabled = !lesson;
   $('transcript-title').textContent = filter ? `Sentences containing ${filter}` : lesson?.title || 'Your transcript appears here';
   if (!lesson) {
     $('transcript').append(element('p', 'Capture a lesson or try the sample to get started.', 'empty'));
@@ -290,6 +295,20 @@ function renderTranscript() {
     }
     $('transcript').append(row);
   }
+}
+
+function resetLesson() {
+  lesson = null;
+  filter = '';
+  selection = null;
+  currentCardId = null;
+  activeCue = -1;
+  targetTab = 'words';
+  $('paste-title').value = '';
+  $('paste-text').value = '';
+  $('add-selection').textContent = 'Add selection';
+  highlightOnPage('');
+  setVocabularyTab('words');
 }
 
 function renderCards() {
@@ -375,6 +394,10 @@ $('paste').onclick = async () => {
     await addLesson({ title: $('paste-title').value.trim() || 'Pasted transcript', text: $('paste-text').value.trim(), url: '' });
     $('paste-text').value = '';
   } catch (error) { status(error.message, true); }
+};
+$('reset').onclick = () => {
+  resetLesson();
+  status('Transcript session reset. Saved cards were kept.');
 };
 $('demo').onclick = async () => {
   try {

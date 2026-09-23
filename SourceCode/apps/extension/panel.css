@@ -19,6 +19,7 @@ button, input, select, textarea { font: inherit; border-radius: 7px; }
 button { cursor: pointer; padding: 9px 12px; border: 1px solid #ccd9d0; background: #f3f7f1; color: #244638; }
 button:hover { background: #e5eedf; } button:disabled { opacity: .45; cursor: default; }
 button.primary { background: #235746; color: white; border-color: #235746; width: 100%; } button.primary:hover { background: #163e35; }
+.capture-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 #open-export-folder { width: 100%; margin-top: 8px; }
 .quiet { border: 0; background: transparent; padding: 4px; font-size: 12px; }
 label { display: block; margin: 14px 0 6px; font-size: 12px; font-weight: 600; }
