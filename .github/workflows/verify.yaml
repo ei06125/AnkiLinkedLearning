@@ -14,5 +14,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: AnkiLinkedLearning-extension
-          path: .build/extension/
+          path: OutDir/extension/
           if-no-files-found: error

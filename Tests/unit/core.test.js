@@ -1,12 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sentences, kanjiList, makeCard, cardFields, exportAnki } from '../../SourceCode/libs/core.js';
+import { sentences, kanjiList, wordList, makeCard, cardFields, exportAnki } from '../../SourceCode/libs/core.js';
 
 test('keeps a sentence together across transcript cue boundaries', () => {
   assert.deepEqual(sentences('機械学習では\n現在のデータを使います。次の文です！'), ['機械学習では 現在のデータを使います。', '次の文です！']);
 });
 test('counts individual kanji including supplementary Unicode characters', () => {
   assert.deepEqual(kanjiList('学ぶ学習𠮷'), [{ character: '学', count: 2 }, { character: '習', count: 1 }, { character: '𠮷', count: 1 }]);
+});
+test('lists repeated multi-character Japanese words containing kanji', () => {
+  const segmenter = { segment: () => [
+    { segment: '機械学習', isWordLike: true }, { segment: 'で', isWordLike: true },
+    { segment: '機械学習', isWordLike: true }, { segment: '。', isWordLike: false },
+    { segment: '学ぶ', isWordLike: true }
+  ] };
+  assert.deepEqual(wordList('ignored', segmenter), [
+    { word: '機械学習', count: 2 }, { word: '学ぶ', count: 1 }
+  ]);
+});
+test('includes an entire contiguous kanji compound when segmentation splits it', () => {
+  const segmenter = { segment: () => [
+    { segment: '機械', isWordLike: true }, { segment: '学習', isWordLike: true }
+  ] };
+  assert.deepEqual(wordList('機械学習', segmenter), [
+    { word: '機械', count: 1 }, { word: '学習', count: 1 }, { word: '機械学習', count: 1 }
+  ]);
 });
 test('cards retain context and distinguish lessons and targets', () => {
   const card = makeCard('学習', '機械学習です。', { title: 'Lesson', url: 'https://www.linkedin.com/learning/course/lesson' });
