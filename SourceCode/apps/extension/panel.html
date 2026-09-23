@@ -19,12 +19,14 @@
       <div class="section-title"><h2>2. Choose kanji or a word</h2><button id="demo" class="quiet">Try a sample</button></div>
       <p>Choose from detected words or individual kanji. You can also highlight text in a sentence and choose “Add selection”.</p>
       <div class="vocabulary-pane">
-        <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary type">
+        <div class="vocabulary-tabs" role="tablist" aria-label="Study view">
           <button id="words-tab" role="tab" aria-selected="true" aria-controls="words-panel">Words</button>
           <button id="kanji-tab" role="tab" aria-selected="false" aria-controls="kanji-panel" tabindex="-1">Individual kanji</button>
+          <button id="full-transcript-tab" role="tab" aria-selected="false" aria-controls="full-transcript-panel" tabindex="-1">Transcript</button>
         </div>
         <div id="words-panel" role="tabpanel" aria-labelledby="words-tab"><div id="words" class="word-grid" aria-label="Japanese words in this transcript"></div></div>
         <div id="kanji-panel" role="tabpanel" aria-labelledby="kanji-tab" hidden><div id="kanji" class="kanji-grid" aria-label="Kanji in this transcript"></div></div>
+        <div id="full-transcript-panel" role="tabpanel" aria-labelledby="full-transcript-tab" hidden><div id="full-transcript" lang="ja"><p class="empty">Capture a lesson or try the sample to get started.</p></div></div>
       </div>
       <div class="section-title"><h3 id="transcript-title">Your transcript appears here</h3><button id="show-all" class="quiet" hidden>Show all</button></div>
       <div id="transcript" lang="ja"><p class="empty">Capture a lesson or try the sample to get started.</p></div>

@@ -1,6 +1,6 @@
 # Transcript cards
 
-Temporarily capture the current Japanese LinkedIn Learning transcript. A new capture replaces it and transcripts are not persisted. Switch between compact Words and Individual kanji tabs, select a target, or highlight text manually while retaining its complete surrounding sentence. Target selection also highlights matches in LinkedIn’s visible transcript when its current page structure allows it. Closing the panel removes those page highlights; selecting a target restores them.
+Temporarily capture the current Japanese LinkedIn Learning transcript. A new capture replaces it and transcripts are not persisted. Switch between compact Words, Individual kanji, and scrollable Transcript tabs, select a target, or highlight text manually while retaining its complete surrounding sentence. The Transcript tab keeps the complete captured text available without scrolling through the panel and highlights the selected target. Target selection also highlights matches in LinkedIn’s visible transcript when its current page structure allows it. Closing the panel removes those page highlights; selecting a target restores them.
 
 Card front: kanji and sentence. Card back: kanji, reading, sentence, translation, and lesson source. Export UTF-8 text for Anki Desktop without an add-on.
 
