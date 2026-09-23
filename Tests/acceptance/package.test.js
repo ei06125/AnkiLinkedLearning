@@ -12,7 +12,7 @@ test('build includes executable manifest paths and shared module imports', async
   assert.equal(manifest.name, 'AnkiLinkedLearning');
   assert.equal(manifest.background.type, 'module');
   assert.ok(manifest.permissions.includes('downloads'));
-  for (const path of [manifest.background.service_worker, manifest.side_panel.default_path, 'SourceCode/apps/extension/extract.js', 'SourceCode/apps/extension/highlight.js', 'SourceCode/apps/extension/tabs.js', 'SourceCode/libs/core.js', 'SourceCode/libs/dictionary.js', 'SourceCode/libs/translation.js']) {
+  for (const path of [manifest.background.service_worker, manifest.side_panel.default_path, 'SourceCode/apps/extension/extract.js', 'SourceCode/apps/extension/highlight.js', 'SourceCode/apps/extension/playback.js', 'SourceCode/apps/extension/tabs.js', 'SourceCode/libs/core.js', 'SourceCode/libs/dictionary.js', 'SourceCode/libs/translation.js']) {
     await access(new URL(path, output));
   }
   const panel = await readFile(new URL(manifest.side_panel.default_path, output), 'utf8');

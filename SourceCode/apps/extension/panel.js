@@ -3,6 +3,7 @@ import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
 import { findLinkedInLearningTab } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
+import { readVideoTime, seekVideo } from './playback.js';
 
 const $ = id => document.getElementById(id);
 const storage = globalThis.chrome?.storage?.local;
@@ -16,6 +17,7 @@ let vocabularyTab = 'words';
 let targetTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
+let activeCue = -1;
 
 function status(message, error = false) {
   clearTimeout(statusTimer);
@@ -151,6 +153,47 @@ function setVocabularyTab(tab) {
   renderTranscript();
   renderFullTranscript();
   renderCards();
+  if (tab === 'full-transcript') syncTranscriptWithVideo();
+}
+
+function formatTime(seconds) {
+  const value = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor(value % 3600 / 60);
+  const remainder = String(value % 60).padStart(2, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`;
+}
+
+async function seekTo(start) {
+  const tab = await findLinkedInLearningTab(chrome.tabs);
+  if (!tab) return status('No LinkedIn Learning lesson tab was found.', true);
+  const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: seekVideo, args: [start] });
+  if (!result.result) return status('No lesson video was found.', true);
+  updateActiveCue(start, true);
+}
+
+function updateActiveCue(currentTime, forceScroll = false) {
+  const cues = lesson?.cues || [];
+  let index = -1;
+  for (let candidate = 0; candidate < cues.length; candidate += 1) {
+    if (cues[candidate].start == null || cues[candidate].start > currentTime) continue;
+    if (index < 0 || cues[candidate].start >= cues[index].start) index = candidate;
+  }
+  if (index === activeCue && !forceScroll) return;
+  activeCue = index;
+  const rows = [...$('full-transcript').querySelectorAll('[data-cue-index]')];
+  rows.forEach((row, rowIndex) => row.classList.toggle('active', rowIndex === index));
+  if (vocabularyTab === 'full-transcript' && index >= 0) rows[index]?.scrollIntoView({ block: 'center', behavior: forceScroll ? 'smooth' : 'auto' });
+}
+
+async function syncTranscriptWithVideo() {
+  if (vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
+  try {
+    const tab = await findLinkedInLearningTab(chrome.tabs);
+    if (!tab) return;
+    const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: readVideoTime });
+    if (result.result) updateActiveCue(result.result.currentTime);
+  } catch {}
 }
 
 function renderFullTranscript() {
@@ -161,20 +204,31 @@ function renderFullTranscript() {
     return;
   }
   let firstMatch;
-  for (const sentence of sentences(current.text)) {
+  const entries = current.cues?.length ? current.cues : sentences(current.text).map(text => ({ text, start: null }));
+  entries.forEach((cue, index) => {
+    const row = element('div', undefined, 'transcript-cue');
+    row.dataset.cueIndex = index;
     const paragraph = element('p');
-    paragraph.dataset.sentence = sentence;
-    if (filter && sentence.includes(filter)) {
-      sentence.split(filter).forEach((part, index) => {
-        if (index) paragraph.append(element('mark', filter));
+    paragraph.dataset.sentence = cue.text;
+    if (cue.start != null) {
+      const timestamp = element('button', formatTime(cue.start), 'timestamp');
+      timestamp.title = `Seek video to ${formatTime(cue.start)}`;
+      timestamp.onclick = () => seekTo(cue.start);
+      row.append(timestamp);
+    }
+    if (filter && cue.text.includes(filter)) {
+      cue.text.split(filter).forEach((part, partIndex) => {
+        if (partIndex) paragraph.append(element('mark', filter));
         paragraph.append(document.createTextNode(part));
       });
-      firstMatch ||= paragraph;
+      firstMatch ||= row;
     } else {
-      paragraph.textContent = sentence;
+      paragraph.textContent = cue.text;
     }
-    $('full-transcript').append(paragraph);
-  }
+    row.append(paragraph);
+    $('full-transcript').append(row);
+  });
+  updateActiveCue(activeCue < 0 ? 0 : lesson.cues?.[activeCue]?.start || 0);
   if (vocabularyTab === 'full-transcript') firstMatch?.scrollIntoView({ block: 'center' });
 }
 
@@ -284,6 +338,7 @@ async function addLesson(captured) {
   if (!hasKanji(captured.text)) throw new Error('No kanji found. Select the Japanese transcript or paste Japanese text.');
   captured.id = captured.url || crypto.randomUUID();
   lesson = captured;
+  activeCue = -1;
   filter = '';
   currentCardId = null;
   renderTranscript();
@@ -370,3 +425,5 @@ try {
   renderCards();
   await backfillTranslations();
 } catch (error) { status(`Could not load saved data: ${error.message}`, true); }
+
+setInterval(syncTranscriptWithVideo, 1000);
