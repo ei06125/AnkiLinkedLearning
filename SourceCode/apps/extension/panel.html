@@ -31,12 +31,13 @@
       <button id="add-selection" disabled>Add selection</button>
     </section>
     <section>
-      <div class="section-title"><h2>3. Build your deck</h2><span id="card-count" class="badge">0 cards</span></div>
+      <div class="section-title"><h2>3. Build your deck</h2><span id="card-count" class="badge">0 saved</span></div>
       <label for="deck">Deck name</label><input id="deck" value="LinkedIn Japanese">
       <label for="mode">Card format</label><select id="mode"><option value="reading">Target + sentence → target, reading, sentence, translation</option><option value="recall">Missing target → target + full sentence</option></select>
       <p>Word readings are looked up through Jisho, and sentences are translated to English automatically. You can edit every field.</p>
-      <div id="cards"></div>
+      <div id="cards"><p class="empty">Choose a sentence to create or update a card.</p></div>
       <button id="export" class="primary" disabled>Export for Anki</button>
+      <button id="open-export-folder">Open export folder</button>
       <p class="hint">In Anki Desktop: File → Import, select the exported .txt file, and use the Basic note type. The deck is created during import.</p>
     </section>
   </main>
