@@ -1,12 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AnkiLinkedLearning",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Turn Japanese transcripts into contextual Anki cards.",
   "minimum_chrome_version": "114",
-  "permissions": ["scripting", "storage", "sidePanel"],
+  "permissions": ["downloads", "scripting", "storage", "sidePanel"],
   "host_permissions": ["https://*.linkedin.com/learning/*", "https://jisho.org/api/v1/search/words*", "https://api.mymemory.translated.net/get*"],
   "action": { "default_title": "AnkiLinkedLearning" },
-  "background": { "service_worker": "SourceCode/apps/extension/background.js" },
+  "background": { "service_worker": "SourceCode/apps/extension/background.js", "type": "module" },
   "side_panel": { "default_path": "SourceCode/apps/extension/panel.html" }
 }

@@ -6,10 +6,12 @@ import { highlightTranscriptTarget } from './highlight.js';
 
 const $ = id => document.getElementById(id);
 const storage = globalThis.chrome?.storage?.local;
+const panelPort = globalThis.chrome?.runtime ? chrome.runtime.connect({ name: 'anki-panel' }) : null;
 let state = { cards: [], deck: 'LinkedIn Japanese', mode: 'reading' };
 let lesson = null;
 let filter = '';
 let selection = null;
+let currentCardId = null;
 let vocabularyTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
@@ -43,9 +45,15 @@ function element(tag, text, className) {
 async function addCard(target, sentence) {
   const cachedTranslation = state.cards.find(existing => existing.sentence === sentence && existing.translation)?.translation || '';
   const card = makeCard(target, sentence, currentLesson());
-  if (state.cards.some(existing => existing.id === card.id)) return status('This kanji and sentence are already in your deck.');
+  const existing = state.cards.find(item => item.id === card.id);
+  if (existing) {
+    currentCardId = existing.id;
+    renderCards();
+    return status(`Opened the saved ${target} card for editing.`);
+  }
   card.translation = cachedTranslation;
   state.cards.push(card);
+  currentCardId = card.id;
   save();
   renderCards();
   status(`Enriching ${target}…`);
@@ -109,19 +117,25 @@ async function highlightOnPage(target) {
   if (!lesson?.url?.startsWith('https://')) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
-    if (tab) await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: highlightTranscriptTarget, args: [target] });
+    if (tab) {
+      if (target) panelPort?.postMessage({ type: 'highlight-tab', tabId: tab.id });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: highlightTranscriptTarget, args: [target] });
+    }
   } catch {}
 }
 
 function chooseTarget(target) {
   filter = filter === target ? '' : target;
+  currentCardId = filter ? state.cards.findLast(card => card.target === filter)?.id || null : null;
   highlightOnPage(filter);
   renderTranscript();
+  renderCards();
 }
 
 function setVocabularyTab(tab) {
   vocabularyTab = tab;
   filter = '';
+  currentCardId = null;
   for (const name of ['words', 'kanji']) {
     const selected = name === vocabularyTab;
     $(`${name}-tab`).setAttribute('aria-selected', String(selected));
@@ -130,6 +144,7 @@ function setVocabularyTab(tab) {
   }
   highlightOnPage('');
   renderTranscript();
+  renderCards();
 }
 
 function renderTranscript() {
@@ -171,7 +186,9 @@ function renderTranscript() {
     else paragraph.textContent = sentence;
     row.append(paragraph);
     if (filter) {
-      const button = element('button', `Add ${filter} with this sentence`);
+      const candidate = makeCard(filter, sentence, lesson);
+      const exists = state.cards.some(card => card.id === candidate.id);
+      const button = element('button', `${exists ? 'Edit' : 'Add'} ${filter} with this sentence`);
       button.onclick = () => addCard(filter, sentence);
       row.append(button);
     }
@@ -181,45 +198,54 @@ function renderTranscript() {
 
 function renderCards() {
   $('cards').replaceChildren();
-  $('card-count').textContent = `${state.cards.length} cards`;
+  $('card-count').textContent = `${state.cards.length} saved`;
   $('export').disabled = !state.cards.length;
-  for (const card of state.cards) {
-    const row = element('article', undefined, 'card');
-    const heading = element('div', undefined, 'section-title');
-    heading.append(element('strong', card.target));
-    const remove = element('button', 'Remove', 'quiet');
-    remove.setAttribute('aria-label', `Remove ${card.target} card`);
-    remove.onclick = () => { state.cards = state.cards.filter(item => item.id !== card.id); save(); renderCards(); };
-    heading.append(remove);
-    row.append(heading, element('p', card.sentence));
-    if (card.definitions?.length) row.append(element('p', `Dictionary: ${card.definitions.join('; ')}`, 'dictionary-result'));
-    const fields = element('div', undefined, 'fields');
-    const preview = element('details');
-    preview.append(element('summary', 'Preview card'));
-    const content = element('div', undefined, 'preview');
-    function updatePreview() {
-      const [front, back] = cardFields(card, state.mode);
-      content.innerHTML = `<small>FRONT</small>${front}<hr><small>BACK</small>${back}`;
-    }
-    for (const [key, name] of [['reading', 'Reading'], ['translation', 'Sentence translation']]) {
-      const label = element('label', name);
-      const input = element('input');
-      input.value = card[key];
-      input.placeholder = key === 'reading' ? 'ひらがな' : 'Translate the full sentence';
-      input.oninput = () => { card[key] = input.value; save(); updatePreview(); };
-      label.append(input);
-      if (key === 'translation') {
-        const translate = element('button', card.translation ? 'Translate again' : 'Translate automatically', 'translate-button');
-        translate.onclick = () => translateCard(card, translate);
-        label.append(translate);
-      }
-      fields.append(label);
-    }
-    updatePreview();
-    preview.append(content);
-    row.append(fields, preview);
-    $('cards').append(row);
+  const card = state.cards.find(item => item.id === currentCardId);
+  if (!card) {
+    $('cards').append(element('p', 'Choose a sentence to create or update a card.', 'empty'));
+    return;
   }
+  const row = element('article', undefined, 'card');
+  const heading = element('div', undefined, 'section-title');
+  heading.append(element('strong', card.target));
+  const remove = element('button', 'Remove', 'quiet');
+  remove.setAttribute('aria-label', `Remove ${card.target} card`);
+  remove.onclick = () => {
+    state.cards = state.cards.filter(item => item.id !== card.id);
+    currentCardId = null;
+    save();
+    renderTranscript();
+    renderCards();
+  };
+  heading.append(remove);
+  row.append(heading, element('p', card.sentence));
+  if (card.definitions?.length) row.append(element('p', `Dictionary: ${card.definitions.join('; ')}`, 'dictionary-result'));
+  const fields = element('div', undefined, 'fields');
+  const preview = element('details');
+  preview.append(element('summary', 'Preview card'));
+  const content = element('div', undefined, 'preview');
+  function updatePreview() {
+    const [front, back] = cardFields(card, state.mode);
+    content.innerHTML = `<small>FRONT</small>${front}<hr><small>BACK</small>${back}`;
+  }
+  for (const [key, name] of [['reading', 'Reading'], ['translation', 'Sentence translation']]) {
+    const label = element('label', name);
+    const input = element('input');
+    input.value = card[key];
+    input.placeholder = key === 'reading' ? 'ひらがな' : 'Translate the full sentence';
+    input.oninput = () => { card[key] = input.value; save(); updatePreview(); };
+    label.append(input);
+    if (key === 'translation') {
+      const translate = element('button', card.translation ? 'Translate again' : 'Translate automatically', 'translate-button');
+      translate.onclick = () => translateCard(card, translate);
+      label.append(translate);
+    }
+    fields.append(label);
+  }
+  updatePreview();
+  preview.append(content);
+  row.append(fields, preview);
+  $('cards').append(row);
 }
 
 async function addLesson(captured) {
@@ -228,7 +254,9 @@ async function addLesson(captured) {
   captured.id = captured.url || crypto.randomUUID();
   lesson = captured;
   filter = '';
+  currentCardId = null;
   renderTranscript();
+  renderCards();
   status(`Captured ${sentences(captured.text).length} sentences from ${captured.title}.`);
 }
 
@@ -257,7 +285,7 @@ $('demo').onclick = async () => {
 };
 $('words-tab').onclick = () => setVocabularyTab('words');
 $('kanji-tab').onclick = () => setVocabularyTab('kanji');
-$('show-all').onclick = () => { filter = ''; highlightOnPage(''); renderTranscript(); };
+$('show-all').onclick = () => { filter = ''; currentCardId = null; highlightOnPage(''); renderTranscript(); renderCards(); };
 document.addEventListener('selectionchange', () => {
   const chosen = window.getSelection();
   const parent = node => (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest('[data-sentence]');
@@ -289,6 +317,10 @@ $('export').onclick = () => {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     status(`Exported ${state.cards.length} cards. Import the file in Anki Desktop.`);
   } catch (error) { status(error.message, true); }
+};
+$('open-export-folder').onclick = () => {
+  if (!globalThis.chrome?.downloads?.showDefaultFolder) return status('Load this folder as a Chrome extension to open the export folder.', true);
+  chrome.downloads.showDefaultFolder();
 };
 
 try {
