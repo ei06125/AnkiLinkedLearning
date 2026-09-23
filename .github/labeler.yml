@@ -1,0 +1,38 @@
+"area: assets":
+  - changed-files:
+      - any-glob-to-any-file: "Assets/**"
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - "Tools/**"
+
+"area: configuration":
+  - changed-files:
+      - any-glob-to-any-file: "Configs/**"
+
+"area: documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Documentation/**"
+          - "*.md"
+
+"area: infrastructure":
+  - changed-files:
+      - any-glob-to-any-file: "Infrastructure/**"
+
+"area: source":
+  - changed-files:
+      - any-glob-to-any-file: "SourceCode/**"
+
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file: "Tests/**"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".pre-commit-config.yaml"
+          - "package.json"
+          - "package-lock.json"
