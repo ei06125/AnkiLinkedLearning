@@ -10,6 +10,18 @@ export function normalizeLinkedInLearningUrl(url) {
   return normalized.href;
 }
 
+export function linkedInLearningVideoId(url) {
+  if (!isLinkedInLearningUrl(url)) return '';
+  const match = new URL(url).pathname.match(/^\/learning\/[^/]+\/(\d+)\/?$/);
+  return match?.[1] || '';
+}
+
+export const linkedInLearningVideoChanged = (currentUrl, nextUrl) => {
+  const current = linkedInLearningVideoId(currentUrl);
+  const next = linkedInLearningVideoId(nextUrl);
+  return Boolean(current && next && current !== next);
+};
+
 export async function findLinkedInLearningTab(tabsApi) {
   const activeTabs = await tabsApi.query({ active: true, lastFocusedWindow: true });
   const activeLesson = activeTabs.find(tab => isLinkedInLearningUrl(tab.url));

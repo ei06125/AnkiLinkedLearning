@@ -61,6 +61,21 @@ test('uses Japanese video cues for timestamps when available', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(result.cues)), [{ text: '字幕です。', start: 4.25 }]);
 });
 
+test('prefers the visible transcript after navigation over stale video cues', () => {
+  const cue = text => ({ innerText: text, dataset: {}, getAttribute: () => null, querySelector: () => null, closest: () => null, getClientRects: () => [1] });
+  const document = {
+    querySelectorAll: selector => selector === '.classroom-transcript__lines .content-transcript-line'
+      ? [cue('新しいレッスンです。')]
+      : [],
+    querySelector: selector => selector === 'video'
+      ? { textTracks: [{ language: 'ja', label: 'Japanese', cues: [{ text: '前のレッスンです。', startTime: 4.25 }] }] }
+      : null,
+    title: 'New lesson'
+  };
+  const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/new-lesson' } });
+  assert.equal(result.text, '新しいレッスンです。');
+});
+
 test('uses embedded LinkedIn transcript timing when video cues are unavailable', () => {
   const cue = text => ({ innerText: text, dataset: {}, getAttribute: () => null, querySelector: () => null, closest: () => null, getClientRects: () => [1] });
   const document = {

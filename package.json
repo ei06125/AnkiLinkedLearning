@@ -1,6 +1,6 @@
 {
   "name": "ankilinkedlearning",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
@@ -10,6 +10,7 @@
     "test": "node --test Tests/unit/*.test.js Tests/acceptance/*.test.js",
     "check": "node Tools/scripts/check.mjs",
     "hooks:install": "pre-commit install --install-hooks",
+    "privacy": "node Tools/scripts/check-anonymity.mjs --tracked",
     "security": "gitleaks dir --redact --config .gitleaks.toml .",
     "verify": "npm run check && npm test && npm run build"
   }
