@@ -35,6 +35,11 @@ resource "github_repository_ruleset" "main" {
         context        = "secrets"
         integration_id = 15368
       }
+
+      required_check {
+        context        = "Approved label"
+        integration_id = 15368
+      }
     }
   }
 }
