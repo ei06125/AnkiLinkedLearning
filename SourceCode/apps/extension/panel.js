@@ -1,7 +1,7 @@
 import { sentences, transcriptParagraphs, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
 import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
-import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from './tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl, linkedInLearningVideoId } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
 import { activeTranscriptIndex, readVideoTime, seekVideo } from './playback.js';
 import { captureFreshTranscript } from './capture.js';
@@ -22,16 +22,19 @@ let statusTimer;
 let activeCue = -1;
 let activeTime = 0;
 let pageActive = false;
+let activeVideoId = '';
 
 async function refreshPageMode() {
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   pageActive = isLinkedInLearningUrl(tab?.url);
+  const videoId = linkedInLearningVideoId(tab?.url);
   $('landing').hidden = pageActive;
   $('app').hidden = !pageActive;
-  if (pageActive && lesson?.url?.startsWith('https://') && normalizeLinkedInLearningUrl(tab.url) !== lesson.url) {
+  if (videoId && activeVideoId && videoId !== activeVideoId) {
     resetLesson(true);
-    status('New lesson detected. Capture its transcript to continue.');
+    status('New video detected. Capture its transcript to continue.');
   }
+  activeVideoId = videoId;
   if (!pageActive) $('status').hidden = true;
   else if (vocabularyTab === 'full-transcript') syncTranscriptWithVideo();
 }
@@ -201,7 +204,7 @@ function updateActiveCue(currentTime, forceScroll = false) {
 }
 
 async function syncTranscriptWithVideo() {
-  if (!pageActive || vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
+  if (!pageActive || vocabularyTab !== 'full-transcript' || linkedInLearningVideoId(lesson?.url) !== activeVideoId || !lesson.cues?.some(cue => cue.start != null)) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
     if (!tab) return;
@@ -387,10 +390,16 @@ $('capture').onclick = async () => {
     if (!globalThis.chrome?.scripting) throw new Error('Load this folder as a Chrome extension to capture a lesson. You can try the sample here.');
     const tab = await findLinkedInLearningTab(chrome.tabs);
     if (!tab) throw new Error('No LinkedIn Learning lesson tab was found. Open a lesson, then try again.');
+    const videoId = linkedInLearningVideoId(tab.url);
+    if (!videoId) throw new Error('The active LinkedIn Learning page does not identify a video.');
+    activeVideoId = videoId;
     const captured = await captureFreshTranscript(async () => {
+      const currentTab = await chrome.tabs.get(tab.id);
+      if (linkedInLearningVideoId(currentTab.url) !== videoId) throw new Error('The active video changed during capture. Capture its transcript again.');
       const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['SourceCode/apps/extension/extract.js'] });
       return result.result;
     }, previousLessonText);
+    if (linkedInLearningVideoId(captured.url) !== videoId) throw new Error('LinkedIn returned a transcript for a different video. Try again after the transcript finishes loading.');
     await addLesson(captured);
   } catch (error) { status(error.message, true); }
   finally { $('capture').disabled = false; }

@@ -1,6 +1,6 @@
 export function readVideoTime() {
   const video = document.querySelector('video');
-  return video ? { currentTime: video.currentTime, paused: video.paused } : null;
+  return video ? { currentTime: video.currentTime, duration: video.duration, paused: video.paused } : null;
 }
 
 export function seekVideo(time) {
