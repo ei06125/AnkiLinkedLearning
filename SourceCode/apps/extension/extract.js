@@ -29,20 +29,22 @@
   ];
   let text = '';
   let cues = [];
-  const tracks = [...(document.querySelector('video')?.textTracks || [])];
-  const track = tracks.find(item => /^(ja|jpn)(-|$)/i.test(item.language) && item.cues?.length)
-    || tracks.find(item => /japanese|日本語/i.test(item.label) && item.cues?.length)
-    || tracks.find(item => item.cues?.length);
-  if (track) {
-    cues = [...track.cues].map(cue => ({ text: cue.text.replace(/<[^>]+>/g, '').trim(), start: cue.startTime })).filter(cue => cue.text);
-    text = cues.map(cue => cue.text).join('\n');
-  }
-  for (const selector of text ? [] : selectors) {
+  for (const selector of selectors) {
     const elements = [...document.querySelectorAll(selector)].filter(visible);
     if (elements.length) {
       cues = elements.map(element => ({ text: element.innerText.trim(), start: cueTime(element) })).filter(cue => cue.text);
       text = cues.map(cue => cue.text).join('\n');
       if (text) break;
+    }
+  }
+  if (!text) {
+    const tracks = [...(document.querySelector('video')?.textTracks || [])];
+    const track = tracks.find(item => /^(ja|jpn)(-|$)/i.test(item.language) && item.cues?.length)
+      || tracks.find(item => /japanese|日本語/i.test(item.label) && item.cues?.length)
+      || tracks.find(item => item.cues?.length);
+    if (track) {
+      cues = [...track.cues].map(cue => ({ text: cue.text.replace(/<[^>]+>/g, '').trim(), start: cue.startTime })).filter(cue => cue.text);
+      text = cues.map(cue => cue.text).join('\n');
     }
   }
   if (text && !cues.some(cue => cue.start != null)) {

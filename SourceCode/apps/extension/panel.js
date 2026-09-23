@@ -3,7 +3,7 @@ import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
 import { findLinkedInLearningTab, isLinkedInLearningUrl, normalizeLinkedInLearningUrl } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
-import { readVideoTime, seekVideo } from './playback.js';
+import { activeTranscriptIndex, readVideoTime, seekVideo } from './playback.js';
 
 const $ = id => document.getElementById(id);
 const storage = globalThis.chrome?.storage?.local;
@@ -18,6 +18,7 @@ let targetTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
 let activeCue = -1;
+let activeTime = 0;
 let pageActive = false;
 
 async function refreshPageMode() {
@@ -188,15 +189,11 @@ async function seekTo(start) {
 }
 
 function updateActiveCue(currentTime, forceScroll = false) {
-  const cues = lesson?.cues || [];
-  let index = -1;
-  for (let candidate = 0; candidate < cues.length; candidate += 1) {
-    if (cues[candidate].start == null || cues[candidate].start > currentTime) continue;
-    if (index < 0 || cues[candidate].start >= cues[index].start) index = candidate;
-  }
-  if (index === activeCue && !forceScroll) return;
-  activeCue = index;
+  activeTime = currentTime;
   const rows = [...$('full-transcript').querySelectorAll('[data-cue-index]')];
+  const entries = rows.map(row => ({ start: row.dataset.start === undefined ? null : Number(row.dataset.start) }));
+  const index = activeTranscriptIndex(entries, currentTime);
+  activeCue = index;
   rows.forEach((row, rowIndex) => row.classList.toggle('active', rowIndex === index));
   if (vocabularyTab === 'full-transcript' && index >= 0) rows[index]?.scrollIntoView({ block: 'center', behavior: forceScroll ? 'smooth' : 'auto' });
 }
@@ -223,6 +220,7 @@ function renderFullTranscript() {
   entries.forEach((cue, index) => {
     const row = element('div', undefined, 'transcript-cue');
     row.dataset.cueIndex = index;
+    if (cue.start != null) row.dataset.start = String(cue.start);
     const paragraph = element('p');
     paragraph.dataset.sentence = cue.text;
     if (cue.start != null) {
@@ -243,7 +241,7 @@ function renderFullTranscript() {
     row.append(paragraph);
     $('full-transcript').append(row);
   });
-  updateActiveCue(activeCue < 0 ? 0 : lesson.cues?.[activeCue]?.start || 0);
+  updateActiveCue(activeTime);
   if (vocabularyTab === 'full-transcript') firstMatch?.scrollIntoView({ block: 'center' });
 }
 
@@ -303,6 +301,7 @@ function resetLesson() {
   selection = null;
   currentCardId = null;
   activeCue = -1;
+  activeTime = 0;
   targetTab = 'words';
   $('paste-title').value = '';
   $('paste-text').value = '';
@@ -369,6 +368,7 @@ async function addLesson(captured) {
   captured.id = captured.url || crypto.randomUUID();
   lesson = captured;
   activeCue = -1;
+  activeTime = 0;
   filter = '';
   currentCardId = null;
   renderTranscript();

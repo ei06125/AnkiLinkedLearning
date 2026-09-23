@@ -23,6 +23,10 @@ repos:
         name: Detect secrets in changed files
         entry: detect-secrets-hook
         language: system
+      - id: repository-anonymity
+        name: Reject absolute home paths and machine identity
+        entry: node Tools/scripts/check-anonymity.mjs
+        language: system
       - id: verify
         name: Check, test, and build extension
         entry: npm run verify
