@@ -1,15 +1,25 @@
-import { sentences, kanjiList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
+import { sentences, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
+import { lookupWord } from '../../libs/dictionary.js';
+import { translateSentence } from '../../libs/translation.js';
+import { findLinkedInLearningTab } from './tabs.js';
+import { highlightTranscriptTarget } from './highlight.js';
 
 const $ = id => document.getElementById(id);
 const storage = globalThis.chrome?.storage?.local;
-let state = { lessons: [], cards: [], active: '', deck: 'LinkedIn Kanji', mode: 'reading' };
+let state = { cards: [], deck: 'LinkedIn Japanese', mode: 'reading' };
+let lesson = null;
 let filter = '';
 let selection = null;
+let vocabularyTab = 'words';
 let saveQueue = Promise.resolve();
+let statusTimer;
 
 function status(message, error = false) {
+  clearTimeout(statusTimer);
   $('status').textContent = message;
   $('status').classList.toggle('error', error);
+  $('status').hidden = false;
+  statusTimer = setTimeout(() => { $('status').hidden = true; }, 5000);
 }
 
 function save() {
@@ -22,7 +32,7 @@ function save() {
   return saveQueue;
 }
 
-const currentLesson = () => state.lessons.find(lesson => lesson.id === state.active);
+const currentLesson = () => lesson;
 function element(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -30,13 +40,96 @@ function element(tag, text, className) {
   return node;
 }
 
-function addCard(target, sentence) {
+async function addCard(target, sentence) {
+  const cachedTranslation = state.cards.find(existing => existing.sentence === sentence && existing.translation)?.translation || '';
   const card = makeCard(target, sentence, currentLesson());
   if (state.cards.some(existing => existing.id === card.id)) return status('This kanji and sentence are already in your deck.');
+  card.translation = cachedTranslation;
   state.cards.push(card);
   save();
   renderCards();
-  status(`Added ${target} with its sentence.`);
+  status(`Enriching ${target}…`);
+  const dictionaryRequest = [...target].length > 1 ? lookupWord(target) : Promise.resolve(null);
+  const translationRequest = cachedTranslation ? Promise.resolve(cachedTranslation) : translateSentence(sentence);
+  const [dictionary, translation] = await Promise.allSettled([dictionaryRequest, translationRequest]);
+  const errors = [];
+  if (dictionary.status === 'fulfilled' && dictionary.value) {
+    card.reading = dictionary.value.reading;
+    card.definitions = dictionary.value.definitions;
+  } else if (dictionary.status === 'rejected') errors.push(dictionary.reason.message);
+  if (translation.status === 'fulfilled') card.translation = translation.value;
+  else errors.push(translation.reason.message);
+  await save();
+  renderCards();
+  if (errors.length) {
+    status(`Added ${target}. ${errors.join(' ')} You can enter missing fields manually.`, true);
+  } else {
+    status(`Added ${target}; available reading and translation filled in.`);
+  }
+}
+
+async function translateCard(card, button) {
+  button.disabled = true;
+  status('Translating sentence…');
+  try {
+    card.translation = await translateSentence(card.sentence);
+    await save();
+    renderCards();
+    status('Sentence translation filled in.');
+  } catch (error) {
+    button.disabled = false;
+    status(`${error.message} Enter the translation manually.`, true);
+  }
+}
+
+async function backfillTranslations() {
+  const missing = state.cards.filter(card => !card.translation);
+  const uniqueSentences = [...new Set(missing.map(card => card.sentence))];
+  if (!uniqueSentences.length) return;
+  status(`Translating ${uniqueSentences.length} saved sentence${uniqueSentences.length === 1 ? '' : 's'}…`);
+  const results = await Promise.allSettled(uniqueSentences.map(sentence => translateSentence(sentence)));
+  let failures = 0;
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      failures += 1;
+      return;
+    }
+    for (const card of missing) {
+      if (card.sentence === uniqueSentences[index]) card.translation = result.value;
+    }
+  });
+  await save();
+  renderCards();
+  status(failures
+    ? `Translated ${uniqueSentences.length - failures} saved sentences; ${failures} failed and can be retried manually.`
+    : 'Saved card translations filled in.', failures > 0);
+}
+
+async function highlightOnPage(target) {
+  if (!lesson?.url?.startsWith('https://')) return;
+  try {
+    const tab = await findLinkedInLearningTab(chrome.tabs);
+    if (tab) await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: highlightTranscriptTarget, args: [target] });
+  } catch {}
+}
+
+function chooseTarget(target) {
+  filter = filter === target ? '' : target;
+  highlightOnPage(filter);
+  renderTranscript();
+}
+
+function setVocabularyTab(tab) {
+  vocabularyTab = tab;
+  filter = '';
+  for (const name of ['words', 'kanji']) {
+    const selected = name === vocabularyTab;
+    $(`${name}-tab`).setAttribute('aria-selected', String(selected));
+    $(`${name}-tab`).tabIndex = selected ? 0 : -1;
+    $(`${name}-panel`).hidden = !selected;
+  }
+  highlightOnPage('');
+  renderTranscript();
 }
 
 function renderTranscript() {
@@ -44,6 +137,7 @@ function renderTranscript() {
   $('add-selection').disabled = true;
   const lesson = currentLesson();
   $('kanji').replaceChildren();
+  $('words').replaceChildren();
   $('transcript').replaceChildren();
   $('show-all').hidden = !filter;
   $('transcript-title').textContent = filter ? `Sentences containing ${filter}` : lesson?.title || 'Your transcript appears here';
@@ -55,8 +149,15 @@ function renderTranscript() {
     const button = element('button', character);
     button.title = `${character} · ${count} occurrences`;
     button.setAttribute('aria-pressed', String(character === filter));
-    button.onclick = () => { filter = filter === character ? '' : character; renderTranscript(); };
+    button.onclick = () => chooseTarget(character);
     $('kanji').append(button);
+  }
+  for (const { word, count } of wordList(lesson.text)) {
+    const button = element('button', word);
+    button.title = `${word} · ${count} occurrences`;
+    button.setAttribute('aria-pressed', String(word === filter));
+    button.onclick = () => chooseTarget(word);
+    $('words').append(button);
   }
   for (const sentence of sentences(lesson.text)) {
     if (filter && !sentence.includes(filter)) continue;
@@ -78,15 +179,6 @@ function renderTranscript() {
   }
 }
 
-function renderLessons() {
-  $('lessons').replaceChildren();
-  if (!state.lessons.length) $('lessons').append(new Option('No lessons yet', ''));
-  for (const lesson of state.lessons) $('lessons').append(new Option(lesson.title, lesson.id));
-  $('lessons').value = state.active;
-  $('lesson-count').textContent = `${state.lessons.length} saved`;
-  renderTranscript();
-}
-
 function renderCards() {
   $('cards').replaceChildren();
   $('card-count').textContent = `${state.cards.length} cards`;
@@ -100,6 +192,7 @@ function renderCards() {
     remove.onclick = () => { state.cards = state.cards.filter(item => item.id !== card.id); save(); renderCards(); };
     heading.append(remove);
     row.append(heading, element('p', card.sentence));
+    if (card.definitions?.length) row.append(element('p', `Dictionary: ${card.definitions.join('; ')}`, 'dictionary-result'));
     const fields = element('div', undefined, 'fields');
     const preview = element('details');
     preview.append(element('summary', 'Preview card'));
@@ -108,13 +201,18 @@ function renderCards() {
       const [front, back] = cardFields(card, state.mode);
       content.innerHTML = `<small>FRONT</small>${front}<hr><small>BACK</small>${back}`;
     }
-    for (const [key, name] of [['reading', 'Kanji reading'], ['translation', 'Sentence translation']]) {
+    for (const [key, name] of [['reading', 'Reading'], ['translation', 'Sentence translation']]) {
       const label = element('label', name);
       const input = element('input');
       input.value = card[key];
       input.placeholder = key === 'reading' ? 'ひらがな' : 'Translate the full sentence';
       input.oninput = () => { card[key] = input.value; save(); updatePreview(); };
       label.append(input);
+      if (key === 'translation') {
+        const translate = element('button', card.translation ? 'Translate again' : 'Translate automatically', 'translate-button');
+        translate.onclick = () => translateCard(card, translate);
+        label.append(translate);
+      }
       fields.append(label);
     }
     updatePreview();
@@ -124,26 +222,22 @@ function renderCards() {
   }
 }
 
-async function addLesson(lesson) {
-  if (!lesson.text?.trim()) throw new Error('No transcript found. Open the Transcript tab and try again, or paste its text.');
-  if (!hasKanji(lesson.text)) throw new Error('No kanji found. Select the Japanese transcript or paste Japanese text.');
-  lesson.id = lesson.url || crypto.randomUUID();
-  const index = state.lessons.findIndex(item => item.id === lesson.id);
-  if (index >= 0) state.lessons[index] = lesson;
-  else state.lessons.push(lesson);
-  state.active = lesson.id;
+async function addLesson(captured) {
+  if (!captured.text?.trim()) throw new Error('No transcript found. Open the Transcript tab and try again, or paste its text.');
+  if (!hasKanji(captured.text)) throw new Error('No kanji found. Select the Japanese transcript or paste Japanese text.');
+  captured.id = captured.url || crypto.randomUUID();
+  lesson = captured;
   filter = '';
-  await save();
-  renderLessons();
-  status(`Saved ${sentences(lesson.text).length} sentences from ${lesson.title}.`);
+  renderTranscript();
+  status(`Captured ${sentences(captured.text).length} sentences from ${captured.title}.`);
 }
 
 $('capture').onclick = async () => {
   $('capture').disabled = true;
   try {
     if (!globalThis.chrome?.scripting) throw new Error('Load this folder as a Chrome extension to capture a lesson. You can try the sample here.');
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!/^https:\/\/([\w-]+\.)?linkedin\.com\/learning\//.test(tab?.url || '')) throw new Error('Open a LinkedIn Learning lesson and click this extension’s toolbar icon first.');
+    const tab = await findLinkedInLearningTab(chrome.tabs);
+    if (!tab) throw new Error('No LinkedIn Learning lesson tab was found. Open a lesson, then try again.');
     const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['SourceCode/apps/extension/extract.js'] });
     await addLesson(result.result);
   } catch (error) { status(error.message, true); }
@@ -161,8 +255,9 @@ $('demo').onclick = async () => {
     await addLesson({ title: 'Sample · 機械学習の概要', url: 'sample:machine-learning', text: '機械学習では、現在のデータを用いて将来の出来事を予測します。教師あり学習と教師なし学習を選択できます。Pythonでモデルを柔軟に構築することができます。学習したモデルをテストして管理します。' });
   } catch (error) { status(error.message, true); }
 };
-$('lessons').onchange = () => { state.active = $('lessons').value; filter = ''; save(); renderTranscript(); };
-$('show-all').onclick = () => { filter = ''; renderTranscript(); };
+$('words-tab').onclick = () => setVocabularyTab('words');
+$('kanji-tab').onclick = () => setVocabularyTab('kanji');
+$('show-all').onclick = () => { filter = ''; highlightOnPage(''); renderTranscript(); };
 document.addEventListener('selectionchange', () => {
   const chosen = window.getSelection();
   const parent = node => (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest('[data-sentence]');
@@ -198,9 +293,15 @@ $('export').onclick = () => {
 
 try {
   const saved = storage ? (await storage.get('kanjiLearning')).kanjiLearning : JSON.parse(localStorage.getItem('kanjiLearning') || 'null');
-  if (saved) state = { ...state, ...saved };
+  if (saved) state = {
+    cards: Array.isArray(saved.cards) ? saved.cards : [],
+    deck: saved.deck || state.deck,
+    mode: saved.mode || state.mode
+  };
+  await save();
   $('deck').value = state.deck;
   $('mode').value = state.mode;
-  renderLessons();
+  setVocabularyTab('words');
   renderCards();
+  await backfillTranslations();
 } catch (error) { status(`Could not load saved data: ${error.message}`, true); }

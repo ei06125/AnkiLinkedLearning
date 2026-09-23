@@ -13,11 +13,26 @@ export function kanjiList(text) {
   return [...counts].map(([character, count]) => ({ character, count }));
 }
 
+export function wordList(text, segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' })) {
+  const segmentedCounts = new Map();
+  for (const { segment, isWordLike } of segmenter.segment(text)) {
+    if (!isWordLike || !hasKanji(segment) || [...segment].length < 2) continue;
+    segmentedCounts.set(segment, (segmentedCounts.get(segment) || 0) + 1);
+  }
+  const runCounts = new Map();
+  for (const match of text.matchAll(/\p{Script=Han}{2,}/gu)) {
+    runCounts.set(match[0], (runCounts.get(match[0]) || 0) + 1);
+  }
+  const counts = new Map(segmentedCounts);
+  for (const [word, count] of runCounts) counts.set(word, Math.max(counts.get(word) || 0, count));
+  return [...counts].map(([word, count]) => ({ word, count }));
+}
+
 export const escapeHtml = text => String(text).replace(/[&<>"']/g, value => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[value]);
 
 export function makeCard(target, sentence, lesson) {
   if (!hasKanji(target) || !sentence.includes(target)) throw new Error('Select kanji within one sentence.');
-  return { id: JSON.stringify([lesson.id || lesson.url, target, sentence]), target, sentence, title: lesson.title, url: lesson.url, reading: '', translation: '' };
+  return { id: JSON.stringify([lesson.id || lesson.url, target, sentence]), target, sentence, title: lesson.title, url: lesson.url, reading: '', translation: '', definitions: [] };
 }
 
 export function cardFields(card, mode = 'reading') {
@@ -35,7 +50,7 @@ export function cardFields(card, mode = 'reading') {
 export function exportAnki(cards, deck, mode) {
   if (!cards.length) throw new Error('Add at least one card before exporting.');
   const quote = value => `"${value.replace(/"/g, '""').replace(/\r?\n/g, '<br>')}"`;
-  const name = deck.replace(/[\r\n\t]/g, ' ').trim() || 'LinkedIn Kanji';
-  return ['#separator:Tab', '#html:true', '#notetype:Basic', '#columns:Front\tBack\tDeck', '#deck column:3', '#tags:linkedin_learning kanji',
+  const name = deck.replace(/[\r\n\t]/g, ' ').trim() || 'LinkedIn Japanese';
+  return ['#separator:Tab', '#html:true', '#notetype:Basic', '#columns:Front\tBack\tDeck', '#deck column:3', '#tags:linkedin_learning japanese vocabulary',
     ...cards.map(card => [...cardFields(card, mode), name].map(quote).join('\t'))].join('\n');
 }

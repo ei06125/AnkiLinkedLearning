@@ -118,6 +118,7 @@ $RECYCLE.BIN/
 *.lnk
 
 ### AnkiLinkedLearning ###
+OutDir/
 .build/
 .playwright-mcp/
 .env.*
@@ -128,3 +129,19 @@ __pycache__/
 .venv/
 # Saved authenticated pages and downloaded third-party scripts stay local.
 /References/
+
+### Terraform ###
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

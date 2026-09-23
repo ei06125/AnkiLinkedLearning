@@ -7,35 +7,40 @@
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
-  <header><span class="mark" lang="ja">字</span><div><h1>AnkiLinkedLearning</h1><p>A lesson. A sentence. A new kanji.</p></div></header>
+  <header><span class="mark" lang="ja">字</span><div><h1>AnkiLinkedLearning</h1><p>A lesson. A sentence. A new word.</p></div></header>
   <main>
     <section>
-      <div class="section-title"><h2>1. Capture a lesson</h2><span id="lesson-count" class="badge">0 saved</span></div>
-      <p>Open a LinkedIn Learning lesson’s Transcript tab, then capture it here. Lessons and cards stay on this device.</p>
+      <h2>1. Capture a transcript</h2>
+      <p>Open a Japanese transcript, then capture it for this study session. Your cards remain saved on this device.</p>
       <button id="capture" class="primary">Capture current transcript</button>
       <details><summary>Paste a transcript instead</summary><label for="paste-title">Lesson title</label><input id="paste-title" placeholder="My Japanese lesson"><label for="paste-text">Japanese transcript</label><textarea id="paste-text" rows="5" placeholder="Paste the transcript here…"></textarea><button id="paste">Add transcript</button></details>
-      <label for="lessons">Saved lessons</label><select id="lessons"><option value="">No lessons yet</option></select>
     </section>
     <section>
-      <div class="section-title"><h2>2. Choose your kanji</h2><button id="demo" class="quiet">Try a sample</button></div>
-      <p>Click a kanji to find its sentences. Or highlight a word in a sentence and choose “Add selection”.</p>
-      <div id="kanji" class="kanji-grid" aria-label="Kanji in this lesson"></div>
+      <div class="section-title"><h2>2. Choose kanji or a word</h2><button id="demo" class="quiet">Try a sample</button></div>
+      <p>Choose from detected words or individual kanji. You can also highlight text in a sentence and choose “Add selection”.</p>
+      <div class="vocabulary-pane">
+        <div class="vocabulary-tabs" role="tablist" aria-label="Vocabulary type">
+          <button id="words-tab" role="tab" aria-selected="true" aria-controls="words-panel">Words</button>
+          <button id="kanji-tab" role="tab" aria-selected="false" aria-controls="kanji-panel" tabindex="-1">Individual kanji</button>
+        </div>
+        <div id="words-panel" role="tabpanel" aria-labelledby="words-tab"><div id="words" class="word-grid" aria-label="Japanese words in this transcript"></div></div>
+        <div id="kanji-panel" role="tabpanel" aria-labelledby="kanji-tab" hidden><div id="kanji" class="kanji-grid" aria-label="Kanji in this transcript"></div></div>
+      </div>
       <div class="section-title"><h3 id="transcript-title">Your transcript appears here</h3><button id="show-all" class="quiet" hidden>Show all</button></div>
       <div id="transcript" lang="ja"><p class="empty">Capture a lesson or try the sample to get started.</p></div>
       <button id="add-selection" disabled>Add selection</button>
     </section>
     <section>
       <div class="section-title"><h2>3. Build your deck</h2><span id="card-count" class="badge">0 cards</span></div>
-      <label for="deck">Deck name</label><input id="deck" value="LinkedIn Kanji">
-      <label for="mode">Card format</label><select id="mode"><option value="reading">Kanji + sentence → kanji, reading, sentence, translation</option><option value="recall">Missing kanji → kanji + full sentence</option></select>
-      <p>Add the kanji reading and sentence translation to each card before exporting.</p>
+      <label for="deck">Deck name</label><input id="deck" value="LinkedIn Japanese">
+      <label for="mode">Card format</label><select id="mode"><option value="reading">Target + sentence → target, reading, sentence, translation</option><option value="recall">Missing target → target + full sentence</option></select>
+      <p>Word readings are looked up through Jisho, and sentences are translated to English automatically. You can edit every field.</p>
       <div id="cards"></div>
       <button id="export" class="primary" disabled>Export for Anki</button>
       <p class="hint">In Anki Desktop: File → Import, select the exported .txt file, and use the Basic note type. The deck is created during import.</p>
     </section>
-    <details><summary>Install & use</summary><p>Run npm run build in the project folder. In Chrome, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the generated .build/extension folder. Click the extension icon while viewing a LinkedIn Learning lesson.</p><p>Capture each lesson you want to study. If capture cannot find the transcript, use the paste option. No account, API key, or Anki add-on is needed.</p></details>
   </main>
-  <footer id="status" role="status" aria-live="polite">Ready to collect.</footer>
+  <footer id="status" role="status" aria-live="polite" hidden></footer>
   <script type="module" src="panel.js"></script>
 </body>
 </html>
