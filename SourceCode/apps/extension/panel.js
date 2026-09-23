@@ -1,7 +1,7 @@
-import { sentences, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
+import { sentences, transcriptParagraphs, kanjiList, wordList, hasKanji, makeCard, cardFields, exportAnki } from '../../libs/core.js';
 import { lookupWord } from '../../libs/dictionary.js';
 import { translateSentence } from '../../libs/translation.js';
-import { findLinkedInLearningTab } from './tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl } from './tabs.js';
 import { highlightTranscriptTarget } from './highlight.js';
 import { readVideoTime, seekVideo } from './playback.js';
 
@@ -18,8 +18,19 @@ let targetTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
 let activeCue = -1;
+let pageActive = false;
+
+async function refreshPageMode() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  pageActive = isLinkedInLearningUrl(tab?.url);
+  $('landing').hidden = pageActive;
+  $('app').hidden = !pageActive;
+  if (!pageActive) $('status').hidden = true;
+  else if (vocabularyTab === 'full-transcript') syncTranscriptWithVideo();
+}
 
 function status(message, error = false) {
+  if (!pageActive) return;
   clearTimeout(statusTimer);
   $('status').textContent = message;
   $('status').classList.toggle('error', error);
@@ -187,7 +198,7 @@ function updateActiveCue(currentTime, forceScroll = false) {
 }
 
 async function syncTranscriptWithVideo() {
-  if (vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
+  if (!pageActive || vocabularyTab !== 'full-transcript' || !lesson?.url?.startsWith('https://') || !lesson.cues?.some(cue => cue.start != null)) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
     if (!tab) return;
@@ -204,7 +215,7 @@ function renderFullTranscript() {
     return;
   }
   let firstMatch;
-  const entries = current.cues?.length ? current.cues : sentences(current.text).map(text => ({ text, start: null }));
+  const entries = current.cues?.length ? transcriptParagraphs(current.cues) : sentences(current.text).map(text => ({ text, start: null }));
   entries.forEach((cue, index) => {
     const row = element('div', undefined, 'transcript-cue');
     row.dataset.cueIndex = index;
@@ -412,6 +423,7 @@ $('open-export-folder').onclick = () => {
 };
 
 try {
+  await refreshPageMode();
   const saved = storage ? (await storage.get('kanjiLearning')).kanjiLearning : JSON.parse(localStorage.getItem('kanjiLearning') || 'null');
   if (saved) state = {
     cards: Array.isArray(saved.cards) ? saved.cards : [],
@@ -427,3 +439,5 @@ try {
 } catch (error) { status(`Could not load saved data: ${error.message}`, true); }
 
 setInterval(syncTranscriptWithVideo, 1000);
+chrome.tabs.onActivated.addListener(refreshPageMode);
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => { if (changeInfo.url || changeInfo.status === 'complete') refreshPageMode(); });

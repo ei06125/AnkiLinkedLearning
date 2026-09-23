@@ -6,6 +6,10 @@ header { display: flex; align-items: center; gap: 12px; padding: 24px 20px; back
 h1 { font-size: 19px; margin: 0; letter-spacing: -.5px; }
 header p { color: #c6d7ce; margin: 5px 0 0; font-size: 12px; }
 main { padding: 18px; max-width: 760px; margin: auto; }
+.landing { min-height: 70vh; display: grid; place-items: center; text-align: center; }
+.landing section { max-width: 420px; border: 0; background: transparent; }
+.landing-mark { display: inline-grid; place-items: center; width: 76px; height: 76px; margin-bottom: 18px; border: 1px solid #82a899; border-radius: 20px; color: #235746; font-size: 44px; }
+.landing h2 { font-size: 21px; }
 section { padding: 19px; background: #fff; border: 1px solid #dde4db; border-radius: 14px; margin-bottom: 16px; }
 h2 { font-size: 15px; margin: 0; } h3 { font-size: 13px; margin: 12px 0; }
 p { line-height: 1.6; color: #65736b; font-size: 13px; }

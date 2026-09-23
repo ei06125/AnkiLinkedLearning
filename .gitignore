@@ -128,7 +128,10 @@ OutDir/
 __pycache__/
 .venv/
 # Saved authenticated pages and downloaded third-party scripts stay local.
-/References/
+/References/*
+!/References/*/
+/References/*/*
+!/References/*/README.md
 
 ### Terraform ###
 **/.terraform/*
