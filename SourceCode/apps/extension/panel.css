@@ -28,7 +28,12 @@ details { margin: 16px 0 4px; } summary { cursor: pointer; font-size: 12px; colo
 .vocabulary-pane [role="tabpanel"] { padding: 12px; }
 .kanji-grid, .word-grid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 154px; overflow: auto; }
 #full-transcript { max-height: 360px; overflow-y: auto; }
-#full-transcript p { color: #293d32; font-size: 16px; line-height: 1.9; margin: 0 0 12px; }
+#full-transcript p { color: #293d32; font-size: 16px; line-height: 1.9; margin: 0; }
+.transcript-cue { display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: start; padding: 7px 8px; border-left: 3px solid transparent; border-radius: 5px; }
+.transcript-cue:not(:has(.timestamp)) { grid-template-columns: 1fr; }
+.transcript-cue.active { background: #edf3e9; border-left-color: #235746; }
+.timestamp { border: 0; background: transparent; color: #526b60; padding: 4px 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.timestamp:hover { background: transparent; color: #163e35; text-decoration: underline; }
 .kanji-grid button { font-size: 22px; min-width: 42px; padding: 6px; }
 .word-grid button { font-size: 16px; padding: 7px 10px; }
 .kanji-grid button[aria-pressed="true"], .word-grid button[aria-pressed="true"] { background: #235746; color: white; }

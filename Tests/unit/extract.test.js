@@ -4,14 +4,15 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const script = await readFile(new URL('../../SourceCode/apps/extension/extract.js', import.meta.url), 'utf8');
-test('extracts visible transcript cues and strips tracking parameters', () => {
-  const cue = text => ({ innerText: text, getClientRects: () => [1] });
+test('extracts visible timestamped transcript cues and strips tracking parameters', () => {
+  const cue = (text, start) => ({ innerText: text, dataset: { startTime: start }, getAttribute: () => null, querySelector: () => null, closest: () => null, getClientRects: () => [1] });
   const document = {
-    querySelectorAll: selector => selector === '.transcripts__paragraph' ? [cue('機械学習では'), cue('データを使います。'), { innerText: 'hidden', getClientRects: () => [] }] : [],
+    querySelectorAll: selector => selector === '.transcripts__paragraph' ? [cue('機械学習では', '12.5'), cue('データを使います。', '18000'), { innerText: 'hidden', getClientRects: () => [] }] : [],
     querySelector: selector => selector === '.classroom-transcript__title' ? { innerText: 'Lesson title' } : null
   };
   const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/lesson?tracking=123#fragment' } });
   assert.equal(result.text, '機械学習では\nデータを使います。');
+  assert.deepEqual(JSON.parse(JSON.stringify(result.cues)), [{ text: '機械学習では', start: 12.5 }, { text: 'データを使います。', start: 18 }]);
   assert.equal(result.url, 'https://www.linkedin.com/learning/course/lesson');
   assert.equal(result.title, 'Lesson title');
 });
@@ -48,4 +49,14 @@ test('falls back to the lesson subtitle or document title', () => {
     const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/lesson' } });
     assert.equal(result.title, subtitle || 'Document lesson');
   }
+});
+
+test('uses Japanese video cues for timestamps when available', () => {
+  const document = {
+    querySelectorAll: () => [],
+    querySelector: selector => selector === 'video' ? { textTracks: [{ language: 'ja', label: 'Japanese', cues: [{ text: '字幕です。', startTime: 4.25 }] }] } : null,
+    title: 'Video lesson'
+  };
+  const result = vm.runInNewContext(script, { document, URL, location: { href: 'https://www.linkedin.com/learning/course/lesson' } });
+  assert.deepEqual(JSON.parse(JSON.stringify(result.cues)), [{ text: '字幕です。', start: 4.25 }]);
 });
