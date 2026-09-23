@@ -9,7 +9,11 @@ export function clearTranscriptHighlights() {
 
 export function highlightTranscriptTarget(target) {
   const attribute = 'data-ankilinkedlearning-highlight';
-  clearTranscriptHighlights();
+  for (const mark of document.querySelectorAll(`[${attribute}]`)) {
+    const parent = mark.parentNode;
+    mark.replaceWith(document.createTextNode(mark.textContent || ''));
+    parent?.normalize();
+  }
   const transcript = document.querySelector('.classroom-transcript__lines');
   if (!transcript || !target) return 0;
   let count = 0;

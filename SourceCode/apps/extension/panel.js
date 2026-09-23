@@ -13,6 +13,7 @@ let filter = '';
 let selection = null;
 let currentCardId = null;
 let vocabularyTab = 'words';
+let targetTab = 'words';
 let saveQueue = Promise.resolve();
 let statusTimer;
 
@@ -129,22 +130,52 @@ function chooseTarget(target) {
   currentCardId = filter ? state.cards.findLast(card => card.target === filter)?.id || null : null;
   highlightOnPage(filter);
   renderTranscript();
+  renderFullTranscript();
   renderCards();
 }
 
 function setVocabularyTab(tab) {
+  if (tab !== 'full-transcript' && tab !== targetTab) {
+    targetTab = tab;
+    filter = '';
+    currentCardId = null;
+    highlightOnPage('');
+  }
   vocabularyTab = tab;
-  filter = '';
-  currentCardId = null;
-  for (const name of ['words', 'kanji']) {
+  for (const name of ['words', 'kanji', 'full-transcript']) {
     const selected = name === vocabularyTab;
     $(`${name}-tab`).setAttribute('aria-selected', String(selected));
     $(`${name}-tab`).tabIndex = selected ? 0 : -1;
     $(`${name}-panel`).hidden = !selected;
   }
-  highlightOnPage('');
   renderTranscript();
+  renderFullTranscript();
   renderCards();
+}
+
+function renderFullTranscript() {
+  $('full-transcript').replaceChildren();
+  const current = currentLesson();
+  if (!current) {
+    $('full-transcript').append(element('p', 'Capture a lesson or try the sample to get started.', 'empty'));
+    return;
+  }
+  let firstMatch;
+  for (const sentence of sentences(current.text)) {
+    const paragraph = element('p');
+    paragraph.dataset.sentence = sentence;
+    if (filter && sentence.includes(filter)) {
+      sentence.split(filter).forEach((part, index) => {
+        if (index) paragraph.append(element('mark', filter));
+        paragraph.append(document.createTextNode(part));
+      });
+      firstMatch ||= paragraph;
+    } else {
+      paragraph.textContent = sentence;
+    }
+    $('full-transcript').append(paragraph);
+  }
+  if (vocabularyTab === 'full-transcript') firstMatch?.scrollIntoView({ block: 'center' });
 }
 
 function renderTranscript() {
@@ -256,6 +287,7 @@ async function addLesson(captured) {
   filter = '';
   currentCardId = null;
   renderTranscript();
+  renderFullTranscript();
   renderCards();
   status(`Captured ${sentences(captured.text).length} sentences from ${captured.title}.`);
 }
@@ -285,7 +317,8 @@ $('demo').onclick = async () => {
 };
 $('words-tab').onclick = () => setVocabularyTab('words');
 $('kanji-tab').onclick = () => setVocabularyTab('kanji');
-$('show-all').onclick = () => { filter = ''; currentCardId = null; highlightOnPage(''); renderTranscript(); renderCards(); };
+$('full-transcript-tab').onclick = () => setVocabularyTab('full-transcript');
+$('show-all').onclick = () => { filter = ''; currentCardId = null; highlightOnPage(''); renderTranscript(); renderFullTranscript(); renderCards(); };
 document.addEventListener('selectionchange', () => {
   const chosen = window.getSelection();
   const parent = node => (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest('[data-sentence]');

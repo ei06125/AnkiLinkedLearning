@@ -18,7 +18,7 @@ No npm dependencies need installing. In Chrome, open `chrome://extensions`, enab
 
 1. Open a Japanese LinkedIn Learning lesson and select its **Transcript** tab.
 2. Click the extension’s toolbar icon and choose **Capture current transcript**.
-3. Switch between the **Words** and **Individual kanji** tabs. Choose a target to filter matching sentences, then add a sentence. The extension also highlights matching text in LinkedIn’s visible transcript when possible and removes the highlight when the panel closes. Alternatively, highlight text within one sentence and choose **Add selection**.
+3. Switch between the **Words**, **Individual kanji**, and scrollable **Transcript** tabs. Choose a target to filter matching sentences and highlight it in the captured transcript, then add a sentence. The extension also highlights matching text in LinkedIn’s visible transcript when possible and removes the highlight when the panel closes. Alternatively, highlight text within one sentence and choose **Add selection**.
 4. Multi-character word readings and English dictionary glosses are retrieved from Jisho. The complete sentence is translated from Japanese to English through MyMemory. Review and edit the current card, preview it, and choose a deck name.
 5. Select **Export for Anki**. In Anki Desktop, use **File → Import** and select the downloaded `.txt` file with the **Basic** note type. **Open export folder** opens Chrome’s configured download folder.
 
