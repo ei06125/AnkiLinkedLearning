@@ -1,8 +1,8 @@
 # Testing
 
-Run `npm test` for unit and packaging acceptance tests. Run `npm run check` for JavaScript syntax checks. Run `npm run verify` for the complete check/test/build sequence.
+Run `npm test` to compile TypeScript and execute unit and packaging acceptance tests concurrently in randomized file order against the emitted JavaScript. The command prints a seed; set `TEST_SEED` to that value to reproduce the same order. Run `npm run typecheck` for strict TypeScript validation without emitting files. Run `npm run check` for tool/test JavaScript syntax checks plus strict type-checking. Run `npm run verify` for the complete check/test/build sequence.
 
-Unit tests cover sentence boundaries, Unicode kanji, Japanese word segmentation, dictionary and translation response handling, context preservation, HTML escaping, export formatting, card layout, and fixture-based transcript extraction. Acceptance tests build the extension and verify its packaged entry points and shared modules.
+Unit tests cover sentence boundaries, Unicode kanji, Japanese word segmentation, dictionary and translation response handling, context preservation, HTML escaping, export formatting, card layout, and fixture-based transcript extraction. Acceptance tests build the extension, verify its packaged entry points and shared modules, and reject packaged TypeScript or source maps.
 
 The saved Event Hubs page in `References/` was checked in a browser using its isolated transcript markup, without executing saved third-party scripts. Extraction returned all 80 transcript anchors and the correct lesson title, excluding accessibility instructions. Regression tests cover the classroom anchor selector and lesson-title fallbacks. Reference files are not packaged with the extension.
 

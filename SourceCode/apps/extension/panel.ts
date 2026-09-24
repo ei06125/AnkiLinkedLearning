@@ -5,20 +5,43 @@ import { findLinkedInLearningTab, isLinkedInLearningUrl, linkedInLearningVideoId
 import { highlightTranscriptTarget } from './highlight.js';
 import { activeTranscriptIndex, readVideoTime, seekVideo } from './playback.js';
 import { captureFreshTranscript } from './capture.js';
+import type { Card, CardMode, CapturedLesson, PersistedState } from '../../types.js';
 
-const $ = id => document.getElementById(id);
+interface FormElements {
+  capture: HTMLButtonElement;
+  paste: HTMLButtonElement;
+  reset: HTMLButtonElement;
+  demo: HTMLButtonElement;
+  'words-tab': HTMLButtonElement;
+  'kanji-tab': HTMLButtonElement;
+  'full-transcript-tab': HTMLButtonElement;
+  'show-all': HTMLButtonElement;
+  'add-selection': HTMLButtonElement;
+  export: HTMLButtonElement;
+  'open-export-folder': HTMLButtonElement;
+  'paste-title': HTMLInputElement;
+  'paste-text': HTMLTextAreaElement;
+  deck: HTMLInputElement;
+  mode: HTMLSelectElement;
+}
+function $<K extends keyof FormElements>(id: K): FormElements[K];
+function $(id: string): HTMLElement;
+function $(id: string): HTMLElement {
+  return document.getElementById(id)!;
+}
 const storage = globalThis.chrome?.storage?.local;
 const panelPort = globalThis.chrome?.runtime ? chrome.runtime.connect({ name: 'anki-panel' }) : null;
-let state = { cards: [], deck: 'LinkedIn Japanese', mode: 'reading' };
-let lesson = null;
+let state: PersistedState = { cards: [], deck: 'LinkedIn Japanese', mode: 'reading' };
+let lesson: CapturedLesson | null = null;
 let previousLessonText = '';
 let filter = '';
-let selection = null;
-let currentCardId = null;
-let vocabularyTab = 'words';
-let targetTab = 'words';
-let saveQueue = Promise.resolve();
-let statusTimer;
+let selection: { target: string; sentence: string } | null = null;
+let currentCardId: string | null = null;
+type VocabularyTab = 'words' | 'kanji' | 'full-transcript';
+let vocabularyTab: VocabularyTab = 'words';
+let targetTab: Exclude<VocabularyTab, 'full-transcript'> = 'words';
+let saveQueue: Promise<void> = Promise.resolve();
+let statusTimer: ReturnType<typeof setTimeout> | undefined;
 let activeCue = -1;
 let activeTime = 0;
 let pageActive = false;
@@ -39,7 +62,7 @@ async function refreshPageMode() {
   else if (vocabularyTab === 'full-transcript') syncTranscriptWithVideo();
 }
 
-function status(message, error = false) {
+function status(message: string, error = false): void {
   if (!pageActive) return;
   clearTimeout(statusTimer);
   $('status').textContent = message;
@@ -58,17 +81,21 @@ function save() {
   return saveQueue;
 }
 
-const currentLesson = () => lesson;
-function element(tag, text, className) {
+const currentLesson = (): CapturedLesson | null => lesson;
+function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
   if (className) node.className = className;
   return node;
 }
 
-async function addCard(target, sentence) {
+const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
+
+async function addCard(target: string, sentence: string): Promise<void> {
   const cachedTranslation = state.cards.find(existing => existing.sentence === sentence && existing.translation)?.translation || '';
-  const card = makeCard(target, sentence, currentLesson());
+  const activeLesson = currentLesson();
+  if (!activeLesson) return;
+  const card = makeCard(target, sentence, activeLesson);
   const existing = state.cards.find(item => item.id === card.id);
   if (existing) {
     currentCardId = existing.id;
@@ -88,9 +115,9 @@ async function addCard(target, sentence) {
   if (dictionary.status === 'fulfilled' && dictionary.value) {
     card.reading = dictionary.value.reading;
     card.definitions = dictionary.value.definitions;
-  } else if (dictionary.status === 'rejected') errors.push(dictionary.reason.message);
+  } else if (dictionary.status === 'rejected') errors.push(errorMessage(dictionary.reason));
   if (translation.status === 'fulfilled') card.translation = translation.value;
-  else errors.push(translation.reason.message);
+  else errors.push(errorMessage(translation.reason));
   await save();
   renderCards();
   if (errors.length) {
@@ -100,7 +127,7 @@ async function addCard(target, sentence) {
   }
 }
 
-async function translateCard(card, button) {
+async function translateCard(card: Card, button: HTMLButtonElement): Promise<void> {
   button.disabled = true;
   status('Translating sentence…');
   try {
@@ -110,7 +137,7 @@ async function translateCard(card, button) {
     status('Sentence translation filled in.');
   } catch (error) {
     button.disabled = false;
-    status(`${error.message} Enter the translation manually.`, true);
+    status(`${errorMessage(error)} Enter the translation manually.`, true);
   }
 }
 
@@ -137,18 +164,18 @@ async function backfillTranslations() {
     : 'Saved card translations filled in.', failures > 0);
 }
 
-async function highlightOnPage(target) {
+async function highlightOnPage(target: string): Promise<void> {
   if (!lesson?.url?.startsWith('https://')) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
-    if (tab) {
+    if (tab?.id !== undefined) {
       if (target) panelPort?.postMessage({ type: 'highlight-tab', tabId: tab.id });
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: highlightTranscriptTarget, args: [target] });
     }
   } catch {}
 }
 
-function chooseTarget(target) {
+function chooseTarget(target: string): void {
   filter = filter === target ? '' : target;
   currentCardId = filter ? state.cards.findLast(card => card.target === filter)?.id || null : null;
   highlightOnPage(filter);
@@ -157,7 +184,7 @@ function chooseTarget(target) {
   renderCards();
 }
 
-function setVocabularyTab(tab) {
+function setVocabularyTab(tab: VocabularyTab): void {
   if (tab !== 'full-transcript' && tab !== targetTab) {
     targetTab = tab;
     filter = '';
@@ -177,7 +204,7 @@ function setVocabularyTab(tab) {
   if (tab === 'full-transcript') syncTranscriptWithVideo();
 }
 
-function formatTime(seconds) {
+function formatTime(seconds: number): string {
   const value = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(value / 3600);
   const minutes = Math.floor(value % 3600 / 60);
@@ -185,17 +212,17 @@ function formatTime(seconds) {
   return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`;
 }
 
-async function seekTo(start) {
+async function seekTo(start: number): Promise<void> {
   const tab = await findLinkedInLearningTab(chrome.tabs);
-  if (!tab) return status('No LinkedIn Learning lesson tab was found.', true);
+  if (tab?.id === undefined) return status('No LinkedIn Learning lesson tab was found.', true);
   const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: seekVideo, args: [start] });
   if (!result.result) return status('No lesson video was found.', true);
   updateActiveCue(start, true);
 }
 
-function updateActiveCue(currentTime, forceScroll = false) {
+function updateActiveCue(currentTime: number, forceScroll = false): void {
   activeTime = currentTime;
-  const rows = [...$('full-transcript').querySelectorAll('[data-cue-index]')];
+  const rows = [...$('full-transcript').querySelectorAll<HTMLElement>('[data-cue-index]')];
   const entries = rows.map(row => ({ start: row.dataset.start === undefined ? null : Number(row.dataset.start) }));
   const index = activeTranscriptIndex(entries, currentTime);
   activeCue = index;
@@ -204,10 +231,11 @@ function updateActiveCue(currentTime, forceScroll = false) {
 }
 
 async function syncTranscriptWithVideo() {
-  if (!pageActive || vocabularyTab !== 'full-transcript' || linkedInLearningVideoId(lesson?.url) !== activeVideoId || !lesson.cues?.some(cue => cue.start != null)) return;
+  const activeLesson = lesson;
+  if (!pageActive || vocabularyTab !== 'full-transcript' || linkedInLearningVideoId(activeLesson?.url) !== activeVideoId || !activeLesson?.cues?.some(cue => cue.start != null)) return;
   try {
     const tab = await findLinkedInLearningTab(chrome.tabs);
-    if (!tab) return;
+    if (tab?.id === undefined) return;
     const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: readVideoTime });
     if (result.result) updateActiveCue(result.result.currentTime);
   } catch {}
@@ -220,18 +248,19 @@ function renderFullTranscript() {
     $('full-transcript').append(element('p', 'Capture a lesson or try the sample to get started.', 'empty'));
     return;
   }
-  let firstMatch;
+  let firstMatch: HTMLElement | undefined;
   const entries = current.cues?.length ? transcriptParagraphs(current.cues) : sentences(current.text).map(text => ({ text, start: null }));
   entries.forEach((cue, index) => {
     const row = element('div', undefined, 'transcript-cue');
-    row.dataset.cueIndex = index;
+    row.dataset.cueIndex = String(index);
     if (cue.start != null) row.dataset.start = String(cue.start);
     const paragraph = element('p');
     paragraph.dataset.sentence = cue.text;
     if (cue.start != null) {
-      const timestamp = element('button', formatTime(cue.start), 'timestamp');
-      timestamp.title = `Seek video to ${formatTime(cue.start)}`;
-      timestamp.onclick = () => seekTo(cue.start);
+      const start = cue.start;
+      const timestamp = element('button', formatTime(start), 'timestamp');
+      timestamp.title = `Seek video to ${formatTime(start)}`;
+      timestamp.onclick = () => seekTo(start);
       row.append(timestamp);
     }
     if (filter && cue.text.includes(filter)) {
@@ -300,7 +329,7 @@ function renderTranscript() {
   }
 }
 
-function resetLesson(rememberCurrent = false) {
+function resetLesson(rememberCurrent = false): void {
   previousLessonText = rememberCurrent ? lesson?.text || '' : '';
   lesson = null;
   filter = '';
@@ -325,6 +354,7 @@ function renderCards() {
     $('cards').append(element('p', 'Choose a sentence to create or update a card.', 'empty'));
     return;
   }
+  const activeCard = card;
   const row = element('article', undefined, 'card');
   const heading = element('div', undefined, 'section-title');
   heading.append(element('strong', card.target));
@@ -345,10 +375,10 @@ function renderCards() {
   preview.append(element('summary', 'Preview card'));
   const content = element('div', undefined, 'preview');
   function updatePreview() {
-    const [front, back] = cardFields(card, state.mode);
+    const [front, back] = cardFields(activeCard, state.mode);
     content.innerHTML = `<small>FRONT</small>${front}<hr><small>BACK</small>${back}`;
   }
-  for (const [key, name] of [['reading', 'Reading'], ['translation', 'Sentence translation']]) {
+  for (const [key, name] of [['reading', 'Reading'], ['translation', 'Sentence translation']] as const) {
     const label = element('label', name);
     const input = element('input');
     input.value = card[key];
@@ -368,7 +398,7 @@ function renderCards() {
   $('cards').append(row);
 }
 
-async function addLesson(captured) {
+async function addLesson(captured: CapturedLesson): Promise<void> {
   if (!captured.text?.trim()) throw new Error('No transcript found. Open the Transcript tab and try again, or paste its text.');
   if (!hasKanji(captured.text)) throw new Error('No kanji found. Select the Japanese transcript or paste Japanese text.');
   captured.id = captured.url || crypto.randomUUID();
@@ -389,19 +419,20 @@ $('capture').onclick = async () => {
   try {
     if (!globalThis.chrome?.scripting) throw new Error('Load this folder as a Chrome extension to capture a lesson. You can try the sample here.');
     const tab = await findLinkedInLearningTab(chrome.tabs);
-    if (!tab) throw new Error('No LinkedIn Learning lesson tab was found. Open a lesson, then try again.');
+    if (tab?.id === undefined) throw new Error('No LinkedIn Learning lesson tab was found. Open a lesson, then try again.');
+    const tabId = tab.id;
     const videoId = linkedInLearningVideoId(tab.url);
     if (!videoId) throw new Error('The active LinkedIn Learning page does not identify a video.');
     activeVideoId = videoId;
     const captured = await captureFreshTranscript(async () => {
-      const currentTab = await chrome.tabs.get(tab.id);
+      const currentTab = await chrome.tabs.get(tabId);
       if (linkedInLearningVideoId(currentTab.url) !== videoId) throw new Error('The active video changed during capture. Capture its transcript again.');
-      const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['SourceCode/apps/extension/extract.js'] });
-      return result.result;
+      const [result] = await chrome.scripting.executeScript({ target: { tabId }, files: ['SourceCode/apps/extension/extract.js'] });
+      return result.result as CapturedLesson | undefined;
     }, previousLessonText);
     if (linkedInLearningVideoId(captured.url) !== videoId) throw new Error('LinkedIn returned a transcript for a different video. Try again after the transcript finishes loading.');
     await addLesson(captured);
-  } catch (error) { status(error.message, true); }
+  } catch (error) { status(errorMessage(error), true); }
   finally { $('capture').disabled = false; }
 };
 
@@ -409,7 +440,7 @@ $('paste').onclick = async () => {
   try {
     await addLesson({ title: $('paste-title').value.trim() || 'Pasted transcript', text: $('paste-text').value.trim(), url: '' });
     $('paste-text').value = '';
-  } catch (error) { status(error.message, true); }
+  } catch (error) { status(errorMessage(error), true); }
 };
 $('reset').onclick = () => {
   resetLesson();
@@ -418,7 +449,7 @@ $('reset').onclick = () => {
 $('demo').onclick = async () => {
   try {
     await addLesson({ title: 'Sample · 機械学習の概要', url: 'sample:machine-learning', text: '機械学習では、現在のデータを用いて将来の出来事を予測します。教師あり学習と教師なし学習を選択できます。Pythonでモデルを柔軟に構築することができます。学習したモデルをテストして管理します。' });
-  } catch (error) { status(error.message, true); }
+  } catch (error) { status(errorMessage(error), true); }
 };
 $('words-tab').onclick = () => setVocabularyTab('words');
 $('kanji-tab').onclick = () => setVocabularyTab('kanji');
@@ -426,12 +457,16 @@ $('full-transcript-tab').onclick = () => setVocabularyTab('full-transcript');
 $('show-all').onclick = () => { filter = ''; currentCardId = null; highlightOnPage(''); renderTranscript(); renderFullTranscript(); renderCards(); };
 document.addEventListener('selectionchange', () => {
   const chosen = window.getSelection();
-  const parent = node => (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest('[data-sentence]');
+  const parent = (node: Node | null | undefined): HTMLElement | null => {
+    const element = node instanceof Element ? node : node?.parentElement;
+    return element?.closest<HTMLElement>('[data-sentence]') || null;
+  };
   const start = parent(chosen?.anchorNode);
   const end = parent(chosen?.focusNode);
   const target = chosen?.toString().trim() || '';
-  if (start && start === end && hasKanji(target) && start.dataset.sentence.includes(target)) {
-    selection = { target, sentence: start.dataset.sentence };
+  const sentence = start?.dataset.sentence;
+  if (start && start === end && sentence && hasKanji(target) && sentence.includes(target)) {
+    selection = { target, sentence };
     $('add-selection').disabled = false;
     $('add-selection').textContent = `Add selection: ${target}`;
   } else if (chosen && !chosen.isCollapsed) {
@@ -443,7 +478,7 @@ $('add-selection').onclick = () => {
   if (selection) addCard(selection.target, selection.sentence);
 };
 $('deck').oninput = () => { state.deck = $('deck').value; save(); };
-$('mode').onchange = () => { state.mode = $('mode').value; save(); renderCards(); };
+$('mode').onchange = () => { state.mode = $('mode').value as CardMode; save(); renderCards(); };
 $('export').onclick = () => {
   try {
     const text = exportAnki(state.cards, state.deck, state.mode);
@@ -454,7 +489,7 @@ $('export').onclick = () => {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     status(`Exported ${state.cards.length} cards. Import the file in Anki Desktop.`);
-  } catch (error) { status(error.message, true); }
+  } catch (error) { status(errorMessage(error), true); }
 };
 $('open-export-folder').onclick = () => {
   if (!globalThis.chrome?.downloads?.showDefaultFolder) return status('Load this folder as a Chrome extension to open the export folder.', true);
@@ -463,11 +498,11 @@ $('open-export-folder').onclick = () => {
 
 try {
   await refreshPageMode();
-  const saved = storage ? (await storage.get('kanjiLearning')).kanjiLearning : JSON.parse(localStorage.getItem('kanjiLearning') || 'null');
+  const saved = (storage ? (await storage.get('kanjiLearning')).kanjiLearning : JSON.parse(localStorage.getItem('kanjiLearning') || 'null')) as Partial<PersistedState> | null;
   if (saved) state = {
     cards: Array.isArray(saved.cards) ? saved.cards : [],
     deck: saved.deck || state.deck,
-    mode: saved.mode || state.mode
+    mode: saved.mode === 'recall' ? 'recall' : 'reading'
   };
   await save();
   $('deck').value = state.deck;
@@ -475,7 +510,7 @@ try {
   setVocabularyTab('words');
   renderCards();
   await backfillTranslations();
-} catch (error) { status(`Could not load saved data: ${error.message}`, true); }
+} catch (error) { status(`Could not load saved data: ${errorMessage(error)}`, true); }
 
 setInterval(syncTranscriptWithVideo, 1000);
 chrome.tabs.onActivated.addListener(refreshPageMode);

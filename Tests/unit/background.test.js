@@ -11,7 +11,7 @@ test('clears page highlights when the side panel disconnects', async () => {
     runtime: { onConnect: { addListener(listener) { connectListener = listener; } } },
     scripting: { async executeScript(options) { injection = options; } }
   };
-  await import(`../../SourceCode/apps/extension/background.js?test=${Date.now()}`);
+  await import(`../../.build/SourceCode/apps/extension/background.js?test=${Date.now()}`);
   connectListener({
     name: 'anki-panel',
     onMessage: { addListener(listener) { messageListener = listener; } },

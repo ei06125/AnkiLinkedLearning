@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lookupWord } from '../../SourceCode/libs/dictionary.js';
+import { lookupWord } from '../../.build/SourceCode/libs/dictionary.js';
 
 test('prefers an exact written form and deduplicates definitions', async () => {
   const fetcher = async url => {

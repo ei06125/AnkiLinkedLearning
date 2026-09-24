@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findLinkedInLearningTab, isLinkedInLearningUrl, linkedInLearningVideoChanged, linkedInLearningVideoId, normalizeLinkedInLearningUrl } from '../../SourceCode/apps/extension/tabs.js';
+import { findLinkedInLearningTab, isLinkedInLearningUrl, linkedInLearningVideoChanged, linkedInLearningVideoId, normalizeLinkedInLearningUrl } from '../../.build/SourceCode/apps/extension/tabs.js';
 
 test('recognizes LinkedIn Learning lesson URLs', () => {
   assert.equal(isLinkedInLearningUrl('https://www.linkedin.com/learning/course/lesson'), true);

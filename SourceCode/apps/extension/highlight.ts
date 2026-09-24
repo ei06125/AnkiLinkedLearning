@@ -7,7 +7,7 @@ export function clearTranscriptHighlights() {
   }
 }
 
-export function highlightTranscriptTarget(target) {
+export function highlightTranscriptTarget(target: string): number {
   const attribute = 'data-ankilinkedlearning-highlight';
   for (const mark of document.querySelectorAll(`[${attribute}]`)) {
     const parent = mark.parentNode;
@@ -19,7 +19,7 @@ export function highlightTranscriptTarget(target) {
   let count = 0;
   for (const line of transcript.querySelectorAll('.content-transcript-line')) {
     const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
-    const nodes = [];
+    const nodes: Node[] = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
       const text = node.nodeValue || '';
@@ -38,7 +38,7 @@ export function highlightTranscriptTarget(target) {
         }
         fragment.append(document.createTextNode(part));
       });
-      node.replaceWith(fragment);
+      node.parentNode?.replaceChild(fragment, node);
     }
   }
   return count;

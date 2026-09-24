@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -22,4 +22,7 @@ test('build includes executable manifest paths and shared module imports', async
   assert.ok(panel.includes('id="reset"'));
   const script = await readFile(new URL('panel.js', new URL(manifest.side_panel.default_path, output)), 'utf8');
   assert.ok(script.includes("from '../../libs/core.js'"));
+  const packagedFiles = await readdir(output, { recursive: true });
+  assert.equal(packagedFiles.some(path => /\.(?:ts|map)$/u.test(path)), false);
+  assert.equal(packagedFiles.includes('SourceCode/types.js'), false);
 });

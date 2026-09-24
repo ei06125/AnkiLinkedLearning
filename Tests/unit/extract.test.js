@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
-const script = await readFile(new URL('../../SourceCode/apps/extension/extract.js', import.meta.url), 'utf8');
+const script = await readFile(new URL('../../.build/SourceCode/apps/extension/extract.js', import.meta.url), 'utf8');
 test('extracts visible timestamped transcript cues and strips tracking parameters', () => {
   const cue = (text, start) => ({ innerText: text, dataset: { startTime: start }, getAttribute: () => null, querySelector: () => null, closest: () => null, getClientRects: () => [1] });
   const document = {

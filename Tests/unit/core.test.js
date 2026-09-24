@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sentences, transcriptParagraphs, kanjiList, wordList, makeCard, cardFields, exportAnki } from '../../SourceCode/libs/core.js';
+import { sentences, transcriptParagraphs, kanjiList, wordList, makeCard, cardFields, exportAnki } from '../../.build/SourceCode/libs/core.js';
 
 test('keeps a sentence together across transcript cue boundaries', () => {
   assert.deepEqual(sentences('機械学習では\n現在のデータを使います。次の文です！'), ['機械学習では 現在のデータを使います。', '次の文です！']);
