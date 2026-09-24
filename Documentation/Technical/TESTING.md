@@ -1,6 +1,6 @@
 # Testing
 
-Run `npm test` to compile TypeScript and execute unit and packaging acceptance tests against the emitted JavaScript. Run `npm run typecheck` for strict TypeScript validation without emitting files. Run `npm run check` for tool/test JavaScript syntax checks plus strict type-checking. Run `npm run verify` for the complete check/test/build sequence.
+Run `npm test` to compile TypeScript and execute unit and packaging acceptance tests concurrently in randomized file order against the emitted JavaScript. The command prints a seed; set `TEST_SEED` to that value to reproduce the same order. Run `npm run typecheck` for strict TypeScript validation without emitting files. Run `npm run check` for tool/test JavaScript syntax checks plus strict type-checking. Run `npm run verify` for the complete check/test/build sequence.
 
 Unit tests cover sentence boundaries, Unicode kanji, Japanese word segmentation, dictionary and translation response handling, context preservation, HTML escaping, export formatting, card layout, and fixture-based transcript extraction. Acceptance tests build the extension, verify its packaged entry points and shared modules, and reject packaged TypeScript or source maps.
 

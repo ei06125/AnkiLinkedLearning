@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
 test('build includes executable manifest paths and shared module imports', async () => {
-  execFileSync(process.execPath, [fileURLToPath(new URL('Tools/scripts/compile.mjs', root))]);
   execFileSync(process.execPath, [fileURLToPath(new URL('Tools/scripts/build.mjs', root))]);
   const output = new URL('OutDir/extension/', root);
   const manifest = JSON.parse(await readFile(new URL('manifest.json', output), 'utf8'));
