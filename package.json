@@ -3,15 +3,26 @@
   "version": "2.4.1",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
-  "repository": { "type": "git", "url": "git+ssh://git@github.com/ei06125/AnkiLinkedLearning.git" },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/ei06125/AnkiLinkedLearning.git"
+  },
   "scripts": {
-    "build": "node Tools/scripts/build.mjs",
-    "test": "node --test Tests/unit/*.test.js Tests/acceptance/*.test.js",
-    "check": "node Tools/scripts/check.mjs",
+    "build": "node Tools/scripts/compile.mjs && node Tools/scripts/build.mjs",
+    "compile": "node Tools/scripts/compile.mjs",
+    "test": "npm run compile && node --test Tests/unit/*.test.js Tests/acceptance/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "check": "node Tools/scripts/check.mjs && npm run typecheck",
     "hooks:install": "pre-commit install --install-hooks",
     "privacy": "node Tools/scripts/check-anonymity.mjs --tracked",
     "security": "gitleaks dir --redact --config .gitleaks.toml .",
     "verify": "npm run check && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.0",
+    "typescript": "^7.0.2"
   }
 }

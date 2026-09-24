@@ -1,12 +1,14 @@
-export const hasKanji = text => /\p{Script=Han}/u.test(text);
+import type { Card, CardMode, CapturedLesson, TimedTranscriptCue } from '../types.js';
 
-export function sentences(text) {
+export const hasKanji = (text: string) => /\p{Script=Han}/u.test(text);
+
+export function sentences(text: string): string[] {
   return (text.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').match(/[^。！？!?]+[。！？!?]*[」』”"]*/gu) || [])
     .map(value => value.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
 }
 
-export function transcriptParagraphs(cues) {
-  const paragraphs = [];
+export function transcriptParagraphs(cues: TimedTranscriptCue[]): TimedTranscriptCue[] {
+  const paragraphs: TimedTranscriptCue[] = [];
   let text = '';
   let start = null;
   for (const cue of cues) {
@@ -24,21 +26,21 @@ export function transcriptParagraphs(cues) {
   return paragraphs;
 }
 
-export function kanjiList(text) {
-  const counts = new Map();
+export function kanjiList(text: string): Array<{ character: string; count: number }> {
+  const counts = new Map<string, number>();
   for (const character of text) {
     if (hasKanji(character)) counts.set(character, (counts.get(character) || 0) + 1);
   }
   return [...counts].map(([character, count]) => ({ character, count }));
 }
 
-export function wordList(text, segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' })) {
-  const segmentedCounts = new Map();
+export function wordList(text: string, segmenter = new Intl.Segmenter('ja-JP', { granularity: 'word' })): Array<{ word: string; count: number }> {
+  const segmentedCounts = new Map<string, number>();
   for (const { segment, isWordLike } of segmenter.segment(text)) {
     if (!isWordLike || !hasKanji(segment) || [...segment].length < 2) continue;
     segmentedCounts.set(segment, (segmentedCounts.get(segment) || 0) + 1);
   }
-  const runCounts = new Map();
+  const runCounts = new Map<string, number>();
   for (const match of text.matchAll(/\p{Script=Han}{2,}/gu)) {
     runCounts.set(match[0], (runCounts.get(match[0]) || 0) + 1);
   }
@@ -47,14 +49,16 @@ export function wordList(text, segmenter = new Intl.Segmenter('ja-JP', { granula
   return [...counts].map(([word, count]) => ({ word, count }));
 }
 
-export const escapeHtml = text => String(text).replace(/[&<>"']/g, value => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[value]);
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
-export function makeCard(target, sentence, lesson) {
+export const escapeHtml = (text: unknown) => String(text).replace(/[&<>"']/g, value => HTML_ESCAPES[value]);
+
+export function makeCard(target: string, sentence: string, lesson: CapturedLesson): Card {
   if (!hasKanji(target) || !sentence.includes(target)) throw new Error('Select kanji within one sentence.');
   return { id: JSON.stringify([lesson.id || lesson.url, target, sentence]), target, sentence, title: lesson.title, url: lesson.url, reading: '', translation: '', definitions: [] };
 }
 
-export function cardFields(card, mode = 'reading') {
+export function cardFields(card: Card, mode: CardMode = 'reading'): [string, string] {
   const parts = card.sentence.split(card.target).map(escapeHtml);
   const front = mode === 'recall'
     ? parts.join('<b>［ … ］</b>')
@@ -66,9 +70,9 @@ export function cardFields(card, mode = 'reading') {
   return [front, back];
 }
 
-export function exportAnki(cards, deck, mode) {
+export function exportAnki(cards: Card[], deck: string, mode: CardMode): string {
   if (!cards.length) throw new Error('Add at least one card before exporting.');
-  const quote = value => `"${value.replace(/"/g, '""').replace(/\r?\n/g, '<br>')}"`;
+  const quote = (value: string) => `"${value.replace(/"/g, '""').replace(/\r?\n/g, '<br>')}"`;
   const name = deck.replace(/[\r\n\t]/g, ' ').trim() || 'LinkedIn Japanese';
   return ['#separator:Tab', '#html:true', '#notetype:Basic', '#columns:Front\tBack\tDeck', '#deck column:3', '#tags:linkedin_learning japanese vocabulary',
     ...cards.map(card => [...cardFields(card, mode), name].map(quote).join('\t'))].join('\n');

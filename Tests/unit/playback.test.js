@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeTranscriptIndex } from '../../SourceCode/apps/extension/playback.js';
+import { activeTranscriptIndex } from '../../.build/SourceCode/apps/extension/playback.js';
 
 test('maps playback time to grouped transcript paragraphs', () => {
   const paragraphs = [{ start: 0 }, { start: 10 }, { start: 19 }];

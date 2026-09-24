@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { captureFreshTranscript } from '../../SourceCode/apps/extension/capture.js';
+import { captureFreshTranscript } from '../../.build/SourceCode/apps/extension/capture.js';
 
 test('retries while LinkedIn still exposes the previous lesson transcript', async () => {
   const captures = [
