@@ -13,7 +13,7 @@
   "scripts": {
     "build": "node Tools/scripts/compile.mjs && node Tools/scripts/build.mjs",
     "compile": "node Tools/scripts/compile.mjs",
-    "test": "npm run compile && node --test Tests/unit/*.test.js Tests/acceptance/*.test.js",
+    "test": "npm run compile && node Tools/scripts/test.mjs",
     "typecheck": "tsc --noEmit",
     "check": "node Tools/scripts/check.mjs && npm run typecheck",
     "hooks:install": "pre-commit install --install-hooks",
