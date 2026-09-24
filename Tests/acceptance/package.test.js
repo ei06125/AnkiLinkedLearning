@@ -1,12 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir, stat } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const root = new URL('../../', import.meta.url);
-test('build includes executable manifest paths and shared module imports', async () => {
+test('build preserves compiled inputs and includes executable manifest paths and shared module imports', async () => {
+  const compiledCore = new URL('.build/SourceCode/libs/core.js', root);
+  const beforeBuild = await stat(compiledCore);
   execFileSync(process.execPath, [fileURLToPath(new URL('Tools/scripts/build.mjs', root))]);
+  const afterBuild = await stat(compiledCore);
+  assert.equal(afterBuild.ino, beforeBuild.ino);
+  assert.equal(afterBuild.mtimeMs, beforeBuild.mtimeMs);
   const output = new URL('OutDir/extension/', root);
   const manifest = JSON.parse(await readFile(new URL('manifest.json', output), 'utf8'));
   const packageMetadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
